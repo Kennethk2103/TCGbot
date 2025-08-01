@@ -6,12 +6,6 @@ const { SlashCommandBuilder, ActionRowBuilder, SelectMenuBuilder, ComponentType 
 
 const { CLIENT_ID, token_discord, SERVER_ID } = require('../config.json');
 
-//add map is for custom ads you want to play in the form
-// { name: "name of ad", fileLocation: "location of file", length: "length of ad in seconds" }
-
-//normal ads is for normal ads you want to play in the form
-// { name: "name of ad", fileLocation: "location of file", length: "length of ad in seconds" }
-
 
 const client = new Client({ intents: [IntentsBitField.Flags.Guilds, IntentsBitField.Flags.GuildMembers, IntentsBitField.Flags.GuildMessages, IntentsBitField.Flags.MessageContent, IntentsBitField.Flags.GuildVoiceStates, IntentsBitField.Flags.GuildModeration] });
 
@@ -49,6 +43,8 @@ client.on('interactionCreate', (interaction) => {
     if (interaction.commandName == 'ping') {
         return interaction.reply("Pong!");
     }
+
+    
 
 
 });

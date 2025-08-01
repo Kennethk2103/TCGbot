@@ -6,110 +6,74 @@ const { REST, Routes, ApplicationCommandOptionType, Options, ChannelType, Permis
 
 const commands = [
   {
-
-    name: 'chat',
-    description: 'allows you to chat with Kevin',
-    options: [
-        {
-            name: 'message',
-            description:"write your message",
-            type:ApplicationCommandOptionType.String,
-            required:true
-        }
-    ],
-  },
-  {
     name: 'ping',
     description: 'Pong!',
     permissionsRequired:[8]
   },
+
   {
-    name:"join-voice-channel",
-    description:'join voice channel',
+    name:"list",
+    description: "List all the cards you have",
+  },
+  {
+    name:"makepin",
+    description:"make a pin or somethin idk",
     options: [
       {
-          name: 'channel',
-          description:"put id of channel",
-          ChannelType:(ChannelType.GuildVoice),
-          type:ApplicationCommandOptionType.Channel,
-          required:true
-      }
-      
-  ],
-  },
-  {
-    name: 'disconnect',
-    description: 'turns talk off',
-    permissionsRequired:[8],
-  },
-  {
-    name:"play-audio",
-    description:"Play audio"
-  },
-  {
-    name:"pause-audio",
-    description:'pause audio'
-  },
-  {
-    name:"add-to-queue",
-    description:"add url to queue",
-    options:[{
-      name:"url",
-      description:"the youtube url",
-      type:ApplicationCommandOptionType.String,
-      required:true
-    }]
-  },
-  {
-    name:"skip-next",
-    description:"skip the current song"
-  },
-  {
-    name:"toggle-radio-host",
-    description:"toggle radio host on and off"
-  }, 
-  {
-    name:"get-song-queue",
-    description:"Get queue for songs"
-  },
-  {
-    name:"skip",
-    description:"Skip next song"
-  },
-  {
-    name:"search",
-    description:"search for a song",
-    options:[{
-      name:"query",
-      description:"the query",
-      type:ApplicationCommandOptionType.String,
-      required:true
-    }]
-  },
-  {
-    name:"toggle-regular-ads",
-    description:"toggle regular ads on and off"
-  },
-  {
-    name:"toggle-custom-ads",
-    description:"toggle custom ads on and off"
-  },
-  {
-    name:"toggle-ai-readout",
-    description:"toggle talk on and off"
-  },
-  {
-    name:"make-image",
-    description:"make an image from a prompt",
-    options: [
-      {
-        name: "prompt", 
-        description: "The prompt for the image generation",
+        name: "pin",
+        description: "The pin you want to make",
         type: ApplicationCommandOptionType.String,
-        required: true
+        required: true,
+      }
+    ] 
+  },
+  {
+    name:"view",
+    description: "View a specific card",
+    options: [
+      {
+        name: "card",
+        description: "The card you want to view",
+        type: ApplicationCommandOptionType.String,
+        required: true,
       }
     ]
+  },
+  {
+    name:"open",
+    description: "Open a pack of cards",
+    options: [
+      {
+        name: "set",
+        description: "The set you want to open",
+        type: ApplicationCommandOptionType.Integer,
+        required: true,
+      }
+    ]
+  },
+  {
+    name:"trade",
+    description: "Trade cards with another user",
+    options: [
+      {
+        name: "user",
+        description: "The user you want to trade with",
+        type: ApplicationCommandOptionType.User,
+        required: true,
+      },
+      {
+        name: "card",
+        description: "The card you want to trade",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      }
+    ]
+  },
+  {
+    name:"matchtrade",
+    
   }
+
 
 ];
 

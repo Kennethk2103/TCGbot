@@ -36,3 +36,5 @@ class emphemralHelper{
     }
 
 }
+
+exports.emphemralHelper = emphemralHelper;
