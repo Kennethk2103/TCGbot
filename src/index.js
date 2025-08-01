@@ -1,0 +1,59 @@
+
+const { REST, Client, IntentsBitField, Routes, Activity, ActivityType, italic, VoiceChannel, StringSelectMenuBuilder, time } = require('discord.js')
+
+const { SlashCommandBuilder, ActionRowBuilder, SelectMenuBuilder, ComponentType } = require('discord.js');
+
+
+const { CLIENT_ID, token_discord, SERVER_ID } = require('../config.json');
+
+//add map is for custom ads you want to play in the form
+// { name: "name of ad", fileLocation: "location of file", length: "length of ad in seconds" }
+
+//normal ads is for normal ads you want to play in the form
+// { name: "name of ad", fileLocation: "location of file", length: "length of ad in seconds" }
+
+
+const client = new Client({ intents: [IntentsBitField.Flags.Guilds, IntentsBitField.Flags.GuildMembers, IntentsBitField.Flags.GuildMessages, IntentsBitField.Flags.MessageContent, IntentsBitField.Flags.GuildVoiceStates, IntentsBitField.Flags.GuildModeration] });
+
+const rest = new REST({ version: '10' }).setToken(token_discord);
+
+
+
+client.login(token_discord);
+
+
+client.on('ready', (c) => {
+    console.log("Bot is online")
+});
+
+
+
+
+
+client.on('messageCreate', async (message) => {
+    //you can log messages in here
+});
+
+
+
+process.on("SIGINT", () => {
+    process.exit(0);
+
+})
+
+client.on('interactionCreate', (interaction) => {
+    console.log("Interaction received: " + interaction)
+    if (!interaction.isChatInputCommand()) return;
+    //if interaction is slash commad
+
+    if (interaction.commandName == 'ping') {
+        return interaction.reply("Pong!");
+    }
+
+
+});
+
+
+
+
+
