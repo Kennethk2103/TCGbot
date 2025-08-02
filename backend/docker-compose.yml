@@ -19,4 +19,6 @@ services:
 
 volumes:
   mongo1_data:
+    driver: local
   mongo1_config:
+    driver: local
