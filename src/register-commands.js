@@ -61,18 +61,8 @@ const commands = [
         type: ApplicationCommandOptionType.User,
         required: true,
       },
-      {
-        name: "card",
-        description: "The card you want to trade",
-        type: ApplicationCommandOptionType.String,
-        required: true,
-      }
     ]
   },
-  {
-    name:"matchtrade",
-    
-  }
 
 
 ];
