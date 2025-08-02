@@ -7,11 +7,11 @@ const { SlashCommandBuilder, ActionRowBuilder, SelectMenuBuilder, ComponentType 
 const { CLIENT_ID, token_discord, SERVER_ID } = require('../config.json');
 
 
-const client = new Client({ intents: [IntentsBitField.Flags.Guilds, IntentsBitField.Flags.GuildMembers, IntentsBitField.Flags.GuildMessages, IntentsBitField.Flags.MessageContent, IntentsBitField.Flags.GuildVoiceStates, IntentsBitField.Flags.GuildModeration] });
+const client = new Client({ intents: [IntentsBitField.Flags.Guilds, IntentsBitField.Flags.GuildMembers, IntentsBitField.Flags.GuildMessages, IntentsBitField.Flags.MessageContent, IntentsBitField.Flags.GuildModeration] });
 
 const rest = new REST({ version: '10' }).setToken(token_discord);
 
-
+const {makeTradeRequestReply} = require('./user/stuff.js');
 
 client.login(token_discord);
 
@@ -43,6 +43,15 @@ client.on('interactionCreate', (interaction) => {
     if (interaction.commandName == 'ping') {
         return interaction.reply("Pong!");
     }
+
+    if(interaction.commandName=="trade"){
+        const user = interaction.options.getUser("user");
+
+        // Here you would handle the trade logic
+        return makeTradeRequestReply(interaction);
+    }
+
+
 
     
 
