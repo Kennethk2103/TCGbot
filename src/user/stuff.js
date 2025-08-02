@@ -40,7 +40,55 @@ async function makeTradeRequestReply(interaction) {
     let cardsReceiverHas = new Map([
         [4, { id: 4, count: 2, name: "Card D" }],
         [5, { id: 5, count: 1, name: "Card E" }],
-        [6, { id: 6, count: 4, name: "Card F" }]
+        [6, { id: 6, count: 4, name: "Card F" }],
+        [7, { id: 7, count: 3, name: "Card G" }],
+        [8, { id: 8, count: 2, name: "Card H" }],
+        [9, { id: 9, count: 5, name: "Card I" }],
+        [10, { id: 10, count: 1, name: "Card J" }],
+        [11, { id: 11, count: 2, name: "Card K" }],
+        [12, { id: 12, count: 4, name: "Card L" }],
+        [13, { id: 13, count: 3, name: "Card M" }],
+        [14, { id: 14, count: 2, name: "Card N" }],
+        [15, { id: 15, count: 5, name: "Card O" }],
+        [16, { id: 16, count: 1, name: "Card P" }],
+        [17, { id: 17, count: 2, name: "Card Q" }],
+        [18, { id: 18, count: 4, name: "Card R" }],
+        [19, { id: 19, count: 3, name: "Card S" }],
+        [20, { id: 20, count: 2, name: "Card T" }],
+        [21, { id: 21, count: 5, name: "Card U" }],
+        [22, { id: 22, count: 1, name: "Card V" }],
+        [23, { id: 23, count: 2, name: "Card W" }],
+        [24, { id: 24, count: 4, name: "Card X" }],
+        [25, { id: 25, count: 3, name: "Card Y" }],
+        [26, { id: 26, count: 2, name: "Card Z" }],
+        [27, { id: 27, count: 5, name: "Card AA" }],
+        [28, { id: 28, count: 1, name: "Card AB" }],
+        [29, { id: 29, count: 2, name: "Card AC" }],
+        [30, { id: 30, count: 4, name: "Card AD" }],
+        [31, { id: 31, count: 3, name: "Card AE" }],
+        [32, { id: 32, count: 2, name: "Card AF" }],
+        [33, { id: 33, count: 5, name: "Card AG" }],
+        [34, { id: 34, count: 1, name: "Card AH" }],
+        [35, { id: 35, count: 2, name: "Card AI" }],
+        [36, { id: 36, count: 4, name: "Card AJ" }],
+        [37, { id: 37, count: 3, name: "Card AK" }],
+        [38, { id: 38, count: 2, name: "Card AL" }],
+        [39, { id: 39, count: 5, name: "Card AM" }],
+        [40, { id: 40, count: 1, name: "Card AN" }],
+        [41, { id: 41, count: 2, name: "Card AO" }],
+        [42, { id: 42, count: 4, name: "Card AP" }],
+        [43, { id: 43, count: 3, name: "Card AQ" }],
+        [44, { id: 44, count: 2, name: "Card AR" }],
+        [45, { id: 45, count: 5, name: "Card AS" }],
+        [46, { id: 46, count: 1, name: "Card AT" }],
+        [47, { id: 47, count: 2, name: "Card AU" }],
+        [48, { id: 48, count: 4, name: "Card AV" }],
+        [49, { id: 49, count: 3, name: "Card AW" }],
+        [50, { id: 50, count: 2, name: "Card AX" }],
+        [51, { id: 51, count: 5, name: "Card AY" }],
+        [52, { id: 52, count: 1, name: "Card AZ" }],
+        [53, { id: 53, count: 2, name: "Card BA" }],
+        [54, { id: 54, count: 4, name: "Card BB" }]
     ]);
 
     let cardsReceiverHasArray = Array.from(cardsReceiverHas.values());
@@ -63,7 +111,7 @@ async function makeTradeRequestReply(interaction) {
             .setCustomId("currentCardsForCurrentUserSelect")
             .setPlaceholder("Select a card to trade")
             .setMinValues(0)
-            .setMaxValues(Math.min(cardsSenderHas.size, 25));
+            .setMaxValues(Math.min(cardsSenderHas.size - (currentCardPageForSenderCards * 25), 25));
 
 
         const optionArray = []
@@ -105,7 +153,7 @@ async function makeTradeRequestReply(interaction) {
         if (currentCardPageForSenderCards > 0) {
             pageComponents.push(previousPageButton);
         }
-        if ((currentCardPageForSenderCards + 1) * 25 < cardsSenderHas.length) {
+        if ((currentCardPageForSenderCards + 1) * 25 < cardsSenderHas.size) {
             pageComponents.push(nextPageButton);
         }
 
@@ -139,7 +187,7 @@ async function makeTradeRequestReply(interaction) {
             .setCustomId("otherUserCardsSelect")
             .setPlaceholder("Select a card to trade")
             .setMinValues(0)
-            .setMaxValues(Math.min(cardsReceiverHasArray.length, 25));
+            .setMaxValues(Math.min(cardsReceiverHasArray.length - (currentCardPageForReceiverCards * 25), 25));
 
         const optionArray = []
         for (let i = currentCardPageForReceiverCards * 25; i < Math.min(cardsReceiverHasArray.length, (currentCardPageForReceiverCards + 1) * 25); i++) {
@@ -181,7 +229,7 @@ async function makeTradeRequestReply(interaction) {
         if (currentCardPageForReceiverCards > 0) {
             pageComponents.push(previousPageButton);
         }
-        if ((currentCardPageForReceiverCards + 1) * 25 < cardsReceiverHas.length) {
+        if ((currentCardPageForReceiverCards + 1) * 25 < cardsReceiverHas.size) {
             pageComponents.push(nextPageButton);
         }
 
