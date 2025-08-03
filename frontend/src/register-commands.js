@@ -78,6 +78,12 @@ const commands = [
         required: true,
       },
       {
+        name: "description",
+        description: "The description of the card",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      },
+      {
         name: "set",
         description: "The set of the card",
         type: ApplicationCommandOptionType.String,
@@ -124,6 +130,49 @@ const commands = [
     ],
     permissionsRequired:[8] // Admin permission
   }, 
+  {
+    name:"editcard",
+    description: "Edit a card in the database",
+    options: [
+      {
+        name: "name",
+        description: "The name of the card to edit",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      },
+      {
+        name: "newname",
+        description: "The new name of the card",  
+        type: ApplicationCommandOptionType.String,
+        required: false,
+      },
+      {
+        name:"newdescription",
+        description: "The new description of the card",
+        type: ApplicationCommandOptionType.String,
+        required: false,
+      },
+      {
+        name: "newset",
+        description: "The new set of the card",
+        type: ApplicationCommandOptionType.String,
+        required: false,
+      },
+      {
+        name: "newrarity",
+        description: "The new rarity of the card",
+        type: ApplicationCommandOptionType.String,
+        required: false,
+      },
+      {
+        name: "newimage",
+        description: "The new image of the card",
+        type: ApplicationCommandOptionType.Attachment,
+        required: false,
+      }
+    ],
+    permissionsRequired:[8] // Admin permission
+  },
   {
     name:"removeset",
     description: "Remove a set from the database",
@@ -184,6 +233,19 @@ const commands = [
         required: true,
       }
     ]
+  },
+  {
+    name:"viewusersinventory",
+    description: "View a user's inventory",
+    options: [
+      {
+        name: "user",
+        description: "The user whose inventory you want to view",
+        type: ApplicationCommandOptionType.User,
+        required: true,
+      }
+    ],
+    permissionsRequired:[8] // Admin permission
   }
 
 
