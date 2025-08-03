@@ -179,6 +179,46 @@ async function internalRemoveFromSet(cardID, session) {
     }
 }
 
+async function internalAddToSet(cardID, setID, session){
+    try{
+        const card = await cardModel.findById(cardID).session(session);
+        const set = await setModel.findById(setID).session(session);
+        if (!card) throw new DBError("Card Not Found", 404);
+        if (!set) throw new DBError("Set Not Found", 404);
+
+        await setModel.updateOne(
+            { _id: setID },
+            { $push: { cards: cardID } },
+            { session }
+        );
+
+        card.Set = setID; 
+        await card.save({ session });
+    }catch (error) {
+        throw error;
+    }
+}
+
+export const addOrMoveTOSet = async (req, res) => {
+    const session = await mongoose.startSession();
+    try{
+        await session.withTransaction(async () => {
+            const { cardID, setID } = req.body;
+            if (!cardID) throw new DBError("No cardID provided", 400);  
+            if (!setID) throw new DBError("No setID provided", 400);  
+            
+            await internalRemoveFromSet(cardID, session);
+            await internalAddToSet(cardID, setID, session)
+        })
+        session.endSession();
+        return res.status(200).json({ message: "Card added to set." });
+    }catch (error) {
+        const code = error instanceof DBError ? error.statusCode : 500;
+        session.endSession();
+        return res.status(code).json({ message: error.message });
+    }
+}
+
 export const removeCardFromSet = async (req, res) => {
     const session = await mongoose.startSession();
     try {
@@ -216,6 +256,28 @@ export const deleteCard = async (req, res) => {
     }
 }
 
-//Edit Card 
-//Change Set Card Is In / Add card to set 
+export const getAllCards = async (req, res) => {
+    const session = await mongoose.startSession(); 
+    try{
+        const cards = await session.withTransaction(async () => {
+            const allCards = await cardModel.find({}).session(session)
+            return allCards
+        })
+        session.endSession()
+        const cardResponses = cards.map((card) => ({
+            ...card.toObject(),
+            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
+        }));
+        return res.status(200).json({
+            count: cardResponses.length,
+            cards: cardResponses
+        });
+    } catch (error) {
+        const code = error instanceof DBError ? error.statusCode : 500;
+        session.endSession();
+        return res.status(code).json({ message: error.message });
+    }
+}
+
+
 //List all cards 

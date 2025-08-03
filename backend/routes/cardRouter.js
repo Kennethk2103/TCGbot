@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import bodyParser from 'body-parser';
-import { addCard, getCard, removeCardFromSet, deleteCard, editCard } from '../controllers/cardController.js';
+import { addCard, getCard, removeCardFromSet, deleteCard, editCard, addOrMoveTOSet, getAllCards } from '../controllers/cardController.js';
 
 const router = express.Router()
 
@@ -28,5 +28,7 @@ router.post("/edit", upload.single('Artwork'), editCard)
 router.get("/", getCard)
 router.post("/remove", removeCardFromSet)
 router.delete("/", deleteCard)
+router.post("/move", addOrMoveTOSet)
+router.get("/all", getAllCards)
 
 export default router 
