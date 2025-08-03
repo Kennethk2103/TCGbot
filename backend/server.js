@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 5050;
 const app = express(); 
 
 import setRouter from "./routes/setRouter.js"
+import cardRouter from "./routes/cardRouter.js"
 
 app.use(cors());
 app.use(express.json());
@@ -20,6 +21,7 @@ mongoose.connect(process.env.MONGO_URI).then(() => {
 })
 
 app.use("/api/set", setRouter)
+app.use("/api/card", cardRouter)
 
 app.get('/', async (req, res) => {
   res.send('Hello there');

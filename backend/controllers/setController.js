@@ -1,4 +1,5 @@
 import setModel from '../models/set.js'
+import cardModel from '../models/card.js'
 import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
 
@@ -14,14 +15,20 @@ export const addEmptySet = async(req , res) => {
             throw new DBError("No Name Was Given",404)
         }
 
-        const Eset = await setModel.findOne({Name: body.Name}).session(session)
+        if(!body.SetNo){
+            throw new DBError("No Set Number Was Given",404)
+        }
 
-        if(Eset){
-            throw new DBError("Set with this name already exists",400)
+        const Eset = await setModel.findOne({Name: body.Name}).session(session)
+        const Bset = await setModel.findOne({SetNo: body.SetNo}).session(session)
+
+        if(Eset || Bset){
+            throw new DBError("Set with this name or Set Number already exists",400)
         }
 
         let set = new setModel({
             Name: body.Name,
+            SetNo: body.SetNo,
             cards: []
         })
 
@@ -48,3 +55,9 @@ export const addEmptySet = async(req , res) => {
         return res.status(code).json({ message: error.message });
     }
 }
+
+//Edit set
+//List all cards in set 
+//List all sets 
+//List all cards not in set 
+//Get set 

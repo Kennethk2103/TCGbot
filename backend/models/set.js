@@ -2,6 +2,7 @@ import mongoose, {Document, Schema} from 'mongoose';
 
 const setSchema = new Schema({
     Name: {type: String, required: true },
+    SetNo: {type: Number, required: true },
     cards: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Card', default: [] }],
 })
 
