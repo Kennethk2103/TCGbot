@@ -46,7 +46,7 @@ const commands = [
       {
         name: "set",
         description: "The set you want to open",
-        type: ApplicationCommandOptionType.Integer,
+        type: ApplicationCommandOptionType.String,
         required: true,
       }
     ]
@@ -63,6 +63,128 @@ const commands = [
       },
     ]
   },
+  {
+    name:"viewtrades",
+    description: "View your trades",
+  },
+  {
+    name:"addcard",
+    description: "Add a card to the database",
+    options: [
+      {
+        name: "name",
+        description: "The name of the card",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      },
+      {
+        name: "set",
+        description: "The set of the card",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      },
+      {
+        name: "rarity",
+        description: "The rarity of the card",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      },
+      {
+        name: "image",
+        description: "The image : )",
+        type: ApplicationCommandOptionType.Attachment,
+        required: true,
+      }
+    ],
+    permissionsRequired:[8] // Admin permission
+  },
+  {
+    name:"addset",
+    description: "Add a set to the database",
+    options: [
+      {
+        name: "name", 
+        description: "The name of the set",
+        type: ApplicationCommandOptionType.String,
+        required: true, 
+      },
+    ],
+    permissionsRequired:[8] // Admin permission
+  },
+  {
+    name:"removecard",
+    description: "Remove a card from the database",
+    options: [
+      {
+        name: "name",
+        description: "The name of the card to remove",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      }
+    ],
+    permissionsRequired:[8] // Admin permission
+  }, 
+  {
+    name:"removeset",
+    description: "Remove a set from the database",
+    options: [
+      {
+        name: "name",
+        description: "The name of the set to remove",
+        type: ApplicationCommandOptionType.String,
+        required: true,   
+      }
+    ],
+    permissionsRequired:[8] // Admin permission
+  },
+  {
+    name:"givecard",
+    description: "Give a card to a user",
+    options: [
+      {
+        name: "user",
+        description: "The user you want to give the card to",
+        type: ApplicationCommandOptionType.User,
+        required: true,
+      },
+      {
+        name: "card", 
+        description: "The card you want to give",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      }, 
+      {
+        name: "amount",
+        description: "The amount of cards you want to give",
+        type: ApplicationCommandOptionType.Integer,
+        required: true,
+      }
+    ]
+  },
+  {
+    name:"removecarduser",
+    description: "Remove a card from a user's collection",
+    options: [
+      {
+        name: "user",
+        description: "The user you want to remove the card from",
+        type: ApplicationCommandOptionType.User,
+        required: true,
+      },
+      {
+        name: "card",
+        description: "The card you want to remove",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      },
+      {
+        name: "amount",
+        description: "The amount of cards you want to remove",
+        type: ApplicationCommandOptionType.Integer,
+        required: true,
+      }
+    ]
+  }
 
 
 ];

@@ -418,5 +418,23 @@ async function makeTradeRequestReply(interaction) {
 
 }
 
+async function listCards (interaction) {
+    
+    await interaction.reply("Listing cards is not implemented yet.");
+}
+
+async function openPack (interaction) {
+    await interaction.reply("Opening pack is not implemented yet.");
+}
+
+async function viewCard (interaction) {
+    await interaction.reply("Viewing card is not implemented yet.");
+}
+
+async function viewTradeRequests (interaction) {
+    await interaction.reply("Viewing trade requests is not implemented yet.");
+}
+
 
 exports.makeTradeRequestReply = makeTradeRequestReply;
+exports.listCards = listCards;
