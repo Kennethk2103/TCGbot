@@ -57,7 +57,6 @@ export const addEmptySet = async(req , res) => {
 }
 
 //Edit set
-//List all cards in set 
-//List all sets 
+//get all cards in set + Get set 
+//get all sets 
 //List all cards not in set 
-//Get set 
