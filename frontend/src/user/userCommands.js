@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ActionRowBuilder, SelectMenuBuilder, ComponentType, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, ButtonBuilder, ComponentsV2Assertions } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, SelectMenuBuilder, ComponentType, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, ButtonBuilder, ComponentsV2Assertions, CompressionMethod } = require('discord.js');
 
 
 
@@ -419,8 +419,17 @@ async function makeTradeRequestReply(interaction) {
 }
 
 async function listCards (interaction) {
-    
-    await interaction.reply("Listing cards is not implemented yet.");
+
+    let cardMap = new Map()
+
+    let outputList = ""
+    cardMap.forEach((value, key) => {
+        outputList += `${value.name} (ID: ${value.id}, Count: ${value.count})\n`;
+    });
+
+    const textoutput = new TextDisplayBuilder().setContent(outputList || "No cards found.").setId("cardListOutput");
+
+    await interaction.reply([textoutput]);
 }
 
 async function openPack (interaction) {
@@ -428,7 +437,16 @@ async function openPack (interaction) {
 }
 
 async function viewCard (interaction) {
-    await interaction.reply("Viewing card is not implemented yet.");
+
+    let selectedCard = {
+        id: interaction.options.getString("card"),
+        name: "Example Card",
+        description: "This is an example card description.",
+        rarity: "Rare",
+        set: "Example Set",
+        image:[]
+    }
+
 }
 
 async function viewTradeRequests (interaction) {
