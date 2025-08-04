@@ -6,8 +6,7 @@ const userSchema = new Schema({
     Pin: {type: String, required: true},
     isAdmin: { type: Boolean, default: false },
     packsAvailable: {type: Number, default: 1}, //This ensures they have one on joining
-    Cards: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Card', default: [] }],
-    // array< { userSender, userReciever, CardSender[], CardReceiver[]}>
+    Trades: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Trade', default: [] }],
 })
 
 const userModel = mongoose.models.Set || mongoose.model('User', userSchema)
