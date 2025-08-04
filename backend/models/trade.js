@@ -11,3 +11,9 @@ const tradeSchema = new Schema({
 const tradeModel = mongoose.models.Set || mongoose.model('Trade', tradeSchema)
 
 export default tradeModel
+
+//Create Trade 
+//View Trade
+//Reject (Delete Trade)
+//Accept (Move cards)
+//Edit 

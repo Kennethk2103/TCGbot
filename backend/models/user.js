@@ -12,3 +12,13 @@ const userSchema = new Schema({
 const userModel = mongoose.models.Set || mongoose.model('User', userSchema)
 
 export default userModel
+
+//View user cards 
+//View User Info 
+//Sign Up (add User)
+//Edit info 
+//Add card (Internal)
+//Remove Card (Internal)
+//Open Pack 
+//Delete User 
+//Get all trades 
