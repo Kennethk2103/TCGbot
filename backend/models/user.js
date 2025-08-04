@@ -5,7 +5,9 @@ const userSchema = new Schema({
     DiscordID: {type: String, required: true },
     Pin: {type: String, required: true},
     isAdmin: { type: Boolean, default: false },
+    packsAvailable: {type: Number, default: 1}, //This ensures they have one on joining
     Cards: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Card', default: [] }],
+    // array< { userSender, userReciever, CardSender[], CardReceiver[]}>
 })
 
 const userModel = mongoose.models.Set || mongoose.model('User', userSchema)
