@@ -115,46 +115,46 @@ export const editCard = async (req, res) => {
 };
 
 
-export const getCard = async(req , res) => {
+export const getCard = async (req, res) => {
     const session = await mongoose.startSession();
-    try{
-        const cards = await session.withTransaction(async () => {
-            const body = req.body;
+    try {
+        const { ID, Name } = req.query;
 
-            if(body.ID){
-                let card = await cardModel.findOne({_id: body.ID}).session(session)
-                if(!card) throw new DBError("Card Not Found",404);
-                return [card]
-            }else if(body.Name){
-                const foundcards = await cardModel.find({ Name: body.Name }).session(session);
+        let cards;
+
+        await session.withTransaction(async () => {
+            if (ID) {
+                const card = await cardModel.findById(ID).session(session);
+                if (!card) throw new DBError("Card Not Found", 404);
+                cards = [card];
+            } else if (Name) {
+                cards = await cardModel.find({ Name }).session(session);
                 if (cards.length === 0) throw new DBError("No cards found with that name", 404);
-                return foundcards
             } else {
                 throw new DBError("No ID or Name provided to search for card(s)", 400);
             }
-        })
-        session.endSession()
-        const cardResponses = cards.map((card) => ({
+        });
+
+        session.endSession();
+
+        const cardResponses = cards.map(card => ({
             ...card.toObject(),
             Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
         }));
+
         return res.status(200).json({
             count: cardResponses.length,
             cards: cardResponses
         });
-    }catch(error){
+
+    } catch (error) {
         session.endSession();
 
-        let code = 500;
-
-        if(error instanceof DBError) 
-        {
-            code = error.statusCode;
-        }
-        
+        const code = error instanceof DBError ? error.statusCode : 500;
         return res.status(code).json({ message: error.message });
     }
-}
+};
+
 
 async function internalRemoveFromSet(cardID, session) {
     try {
