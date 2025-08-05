@@ -5,6 +5,9 @@ import tradeModel from '../models/trade.js';
 import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
 
+/*
+Expects: Username, DiscordID, Pin
+*/
 export const addUser = async(req, res) => {
     const session = await mongoose.startSession();
     try{
@@ -43,9 +46,60 @@ export const addUser = async(req, res) => {
     }
 }
 
+/*
+Expects: DiscordID or Username, TorF (true or false EXACTLY)
+*/
+export const setAdmin = async(req, res) => {
+    const session = await mongoose.startSession();
+    try {
+        const adminified = await session.withTransaction(async () => {
+            const body = req.body; 
+
+            if(!body.DiscordID && !body.Username) throw new DBError("No Username or Discord ID given", 404);
+            if(!body.TorF || (body.TorF != "true" && body.TorF !="false")) throw new DBError("No Boolean given.  Expected true or false", 404);
+
+            var bo = false; 
+            if(body.TorF == "true") bo = true;
+            
+            var user; 
+
+            if(body.DiscordID){
+                user = await userModel.findOne({DiscordID: body.DiscordID}).session(session)
+            }
+            //In case somehow a username and DiscordID were sent, don't use the Username
+            if(!user && body.Username){
+                user = await userModel.findOne({Username: body.Username}).session(session)
+            }
+
+            if(!user){
+                throw new DBError("User was not found!")
+            }
+
+            user.isAdmin = bo; 
+
+            await user.save({session})
+
+            return user
+        })
+
+        session.endSession();
+
+        var msg = `${adminified.Username} successfully Made admin`
+        if(adminified.isAdmin == false){
+            msg = `${adminified.Username} was revoked admin status`
+        }
+        return res.status(200).json({ userID: adminified._id, message: msg });
+    }catch(error){
+        session.endSession();
+
+        const code = error instanceof DBError ? error.statusCode : 500;
+        return res.status(code).json({ message: error.message });        
+    }
+
+}
+
 //View user cards 
 //View User Info 
-//Sign Up (add User)
 //Toggle admin
 //Edit info 
 //Add card (Internal)
