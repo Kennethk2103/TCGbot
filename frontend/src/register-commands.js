@@ -1,6 +1,11 @@
+const dotenv = require('dotenv');
 
-const {CLIENT_ID, SERVER_ID, token_discord} = require('../config.json');
 
+dotenv.config({ path: './../config.env' });
+
+const CLIENT_ID = process.env.CLIENT_ID;
+const token_discord = process.env.token_discord;
+const SERVER_ID = process.env.SERVER_ID;
 
 const { REST, Routes, ApplicationCommandOptionType, Options, ChannelType, PermissionFlagsBits } = require('discord.js');
 
@@ -100,6 +105,12 @@ const commands = [
         description: "The image : )",
         type: ApplicationCommandOptionType.Attachment,
         required: true,
+      },
+      {
+        name : "num",
+        description: "The number of the card in the set",
+        type: ApplicationCommandOptionType.Integer,
+        required: true,
       }
     ],
     permissionsRequired:[8] // Admin permission
@@ -122,8 +133,8 @@ const commands = [
     description: "Remove a card from the database",
     options: [
       {
-        name: "name",
-        description: "The name of the card to remove",
+        name: "id",
+        description: "The ID of the card to remove",
         type: ApplicationCommandOptionType.String,
         required: true,
       }
@@ -135,10 +146,16 @@ const commands = [
     description: "Edit a card in the database",
     options: [
       {
+        name: "cardid",
+        description: "The ID of the card to edit",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      },
+      {
         name: "name",
         description: "The name of the card to edit",
         type: ApplicationCommandOptionType.String,
-        required: true,
+        required: false,
       },
       {
         name: "newname",
@@ -178,8 +195,8 @@ const commands = [
     description: "Remove a set from the database",
     options: [
       {
-        name: "name",
-        description: "The name of the set to remove",
+        name: "id",
+        description: "The ID of the set to remove",
         type: ApplicationCommandOptionType.String,
         required: true,   
       }
@@ -197,7 +214,7 @@ const commands = [
         required: true,
       },
       {
-        name: "card", 
+        name: "cardId", 
         description: "The card you want to give",
         type: ApplicationCommandOptionType.String,
         required: true,

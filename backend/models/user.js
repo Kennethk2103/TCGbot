@@ -7,6 +7,7 @@ const userSchema = new Schema({
     isAdmin: { type: Boolean, default: false },
     packsAvailable: {type: Number, default: 1}, //This ensures they have one on joining
     Trades: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Trade', default: [] }],
+    Cards: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Card', default: [] }]
 })
 
 const userModel = mongoose.models.Set || mongoose.model('User', userSchema)
