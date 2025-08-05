@@ -8,6 +8,7 @@ const userSchema = new Schema({
     packsAvailable: {type: Number, default: 1}, //This ensures they have one on joining
     Cards: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Card', default: [] }],
     Trades: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Trade', default: [] }],
+    Cards: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Card', default: [] }]
 })
 
 const userModel = mongoose.models.User || mongoose.model('User', userSchema)

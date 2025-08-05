@@ -4,23 +4,24 @@ const { REST, Client, IntentsBitField, Routes, Activity, ActivityType, italic, V
 const { SlashCommandBuilder, ActionRowBuilder, SelectMenuBuilder, ComponentType } = require('discord.js');
 
 
-const { CLIENT_ID, token_discord, SERVER_ID } = require('../config.json');
 
+import dotenv from 'dotenv';
+
+dotenv.config({ path: './../config.env' });
+
+const token_discord = process.env.token_discord;
 
 const client = new Client({ intents: [IntentsBitField.Flags.Guilds, IntentsBitField.Flags.GuildMembers, IntentsBitField.Flags.GuildMessages, IntentsBitField.Flags.MessageContent, IntentsBitField.Flags.GuildModeration] });
 
 const rest = new REST({ version: '10' }).setToken(token_discord);
 
-const {makeTradeRequestReply} = require('./user/stuff.js');
+const {makeTradeRequestReply} = require('./user/userCommands.js');
 
 client.login(token_discord);
-
 
 client.on('ready', (c) => {
     console.log("Bot is online")
 });
-
-
 
 
 
