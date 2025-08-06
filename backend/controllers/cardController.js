@@ -3,6 +3,15 @@ import setModel from '../models/set.js'
 import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
 
+/*
+Expects 
+Name: String 
+Subtitle: String 
+Rarity: String enum 
+Num: Number 
+Set: _id of type Set
+Artwork: file [.jpg, .png, .gif]
+*/
 export const addCard = async(req , res) => {
     const session = await mongoose.startSession();
     const validRarities = ['Common', 'Rare', 'Ultra Rare'];

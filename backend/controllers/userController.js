@@ -47,7 +47,7 @@ export const addUser = async(req, res) => {
 }
 
 /*
-Expects: DiscordID or Username, TorF (true or false EXACTLY)
+Expects: DiscordID or UserID, TorF (true or false EXACTLY)
 */
 export const setAdmin = async(req, res) => {
     const session = await mongoose.startSession();
@@ -55,7 +55,7 @@ export const setAdmin = async(req, res) => {
         const adminified = await session.withTransaction(async () => {
             const body = req.body; 
 
-            if(!body.DiscordID && !body.Username) throw new DBError("No Username or Discord ID given", 404);
+            if(!body.DiscordID && !body.UserID) throw new DBError("No User ID or Discord ID given", 404);
             if(!body.TorF || (body.TorF != "true" && body.TorF !="false")) throw new DBError("No Boolean given.  Expected true or false", 404);
 
             var bo = false; 
@@ -67,8 +67,8 @@ export const setAdmin = async(req, res) => {
                 user = await userModel.findOne({DiscordID: body.DiscordID}).session(session)
             }
             //In case somehow a username and DiscordID were sent, don't use the Username
-            if(!user && body.Username){
-                user = await userModel.findOne({Username: body.Username}).session(session)
+            if(!user && body.UserID){
+                user = await userModel.findById(userID).session(session);
             }
 
             if(!user){
@@ -95,7 +95,57 @@ export const setAdmin = async(req, res) => {
         const code = error instanceof DBError ? error.statusCode : 500;
         return res.status(code).json({ message: error.message });        
     }
+}
 
+/*
+expects the cardID and userID
+*/
+async function internalGiveCardToUser(cardID, userID, session){
+    try{
+        const card = await cardModel.findById(cardID).session(session);
+        const user = await userModel.findById(userID).session(session);
+        if (!card) throw new DBError("Card Not Found", 404);
+        if (!user) throw new DBError("User Not Found", 404);
+
+        await userModel.updateOne(
+            { _id: userID },
+            { $push: { Cards: cardID } },
+            { session }
+        );
+    }catch (error) {
+        throw error;
+    }
+}
+
+/*
+expects the cardID and userID or DiscordID
+*/
+export const giveUserCard = async (req, res) => {
+    const session = await mongoose.startSession();
+    try{
+        await session.withTransaction(async () => {
+            const body = req.body;
+            if (!body.cardID) throw new DBError("No cardID provided", 400);  
+            if(!body.DiscordID && !body.UserID) throw new DBError("No User ID or Discord ID given", 404);
+
+            var user; 
+            if(body.DiscordID){
+                user = await userModel.findOne({DiscordID: body.DiscordID}).session(session)
+            }
+    
+            if(!user && body.UserID){
+                user = await userModel.findById(body.UserID).session(session);
+            }
+            
+            await internalGiveCardToUser(body.cardID, user._id, session)
+        })
+        session.endSession();
+        return res.status(200).json({ message: "Card given to user." });
+    }catch (error) {
+        const code = error instanceof DBError ? error.statusCode : 500;
+        session.endSession();
+        return res.status(code).json({ message: error.message });
+    }
 }
 
 //View user cards 
