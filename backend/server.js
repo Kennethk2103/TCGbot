@@ -53,6 +53,6 @@ process.on('SIGINT', () => {
   console.log('Gracefully shutting down the server...');
   server.close(() => {
     console.log('Server has been shut down');
-    process.exit(0);  // Exit process to allow coverage reporting
+    process.exit(0); 
   });
 });
