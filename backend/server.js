@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import schedule from 'node-schedule'
+import { giveDailyPack } from "./controllers/userController.js";
 
 dotenv.config({ path: 'config.env' });
 
@@ -29,9 +31,17 @@ app.get('/', async (req, res) => {
   res.send('Hello there');
 })
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`)
 })
+
+schedule.scheduleJob('0 0 * * *', async() => { 
+  try{
+    await giveDailyPack();
+  }catch(error){
+    console.error('Error distributing daily packs:', error);
+  }
+}); 
 
 const closeServer = () => {
   server.close(() => {

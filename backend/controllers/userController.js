@@ -285,6 +285,23 @@ export const getUserCards = async(req, res) => {
     }
 } 
 
+export async function giveDailyPack() {
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      await userModel.updateMany(
+        {packsAvailable: { $lt: 5 }},
+        { $inc: { packsAvailable: 1 } },
+        { session }
+      );
+    });
+  } catch (error) {
+    console.error('Error giving daily packs:', error);
+  } finally {
+    session.endSession();
+  }
+}
+
 async function internalEditUser(userID, Pin, packsAvailable, session){
     try{
         const user = await userModel.findById(userID).session(session);
