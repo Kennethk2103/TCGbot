@@ -197,7 +197,7 @@ async function internalAddToSet(cardID, setID, session){
 
         await setModel.updateOne(
             { _id: setID },
-            { $push: { cards: cardID } },
+            { $addToSet: { cards: cardID } },
             { session }
         );
 

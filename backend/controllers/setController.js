@@ -68,7 +68,7 @@ export const getSet = async (req, res) => {
             if (ID) {
                 foundSet = await setModel.findById(ID).populate('cards').session(session);
             } else if (Name) {
-                foundSet = await setModel.findOne({ Name }).populate('cards').session(session);
+                foundSet = await setModel.findOne({Name: Name }).populate('cards').session(session);
             } else {
                 throw new DBError("No ID or Name provided to search for set", 400);
             }
@@ -185,6 +185,3 @@ export const getAllCardsNotInSet = async(req, res) => {
         return res.status(code).json({ message: error.message });
     }
 }
-
-
-//List all cards not in set 

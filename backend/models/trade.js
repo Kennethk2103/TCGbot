@@ -17,3 +17,4 @@ export default tradeModel
 //Reject (Delete Trade)
 //Accept (Move cards)
 //Edit 
+//Get all trades for a user? 
