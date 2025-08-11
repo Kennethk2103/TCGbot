@@ -3,59 +3,70 @@ import cardModel from '../models/card.js'
 import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
 
-//Simply expects Name
-export const addEmptySet = async(req , res) => {
+export const addEmptySet = async (req, res) => {
     const session = await mongoose.startSession();
-    try{
-        const set = await session.withTransaction(async () => {
+
+    try {
+        const newSet = await session.withTransaction(async () => {
             const body = req.body;
 
-            if(!body.Name){
-                throw new DBError("No Name Was Given",404)
+            if (!body.Name) {
+                throw new DBError("No Name Was Given", 404);
             }
 
-            if(!body.SetNo){
-                throw new DBError("No Set Number Was Given",404)
+            if (!body.SetNo) {
+                throw new DBError("No Set Number Was Given", 404);
             }
 
-            const Eset = await setModel.findOne({Name: body.Name}).session(session)
-            const Bset = await setModel.findOne({SetNo: body.SetNo}).session(session)
+            // Pre-check for uniqueness
+            const Eset = await setModel.findOne({ Name: body.Name }).session(session);
+            const Bset = await setModel.findOne({ SetNo: body.SetNo }).session(session);
 
-            if(Eset || Bset){
-                throw new DBError("Set with this name or Set Number already exists",400)
+            if (Eset || Bset) {
+                throw new DBError("Set with this name or Set Number already exists", 400);
             }
 
             let set = new setModel({
                 Name: body.Name,
                 SetNo: body.SetNo,
                 cards: []
-            })
+            });
 
-            const savedSet = await set.save({session})
+            const savedSet = await set.save({ session });
 
-            if(!savedSet){
-                throw new DBError("Failed to create new set", 500)
+            if (!savedSet) {
+                throw new DBError("Failed to create new set", 500);
             }
 
-            return savedSet
+            return savedSet;
+        });
 
-        })
         session.endSession();
-        return res.status(200).json({ setId: set._id, message: "Set successfully created" });
-    }catch(error){
-        await session.abortTransaction();
+        return res.status(200).json({ setId: newSet._id, message: "Set successfully created" });
+
+    } catch (error) {
         session.endSession();
 
         let code = 500;
+        let message = error.message;
 
-        if(error instanceof DBError) 
-        {
+        if (error instanceof DBError) {
             code = error.statusCode;
+        } else if (error.code === 11000) { 
+            code = 400;
+            if (error.keyPattern?.SetNo) {
+                message = "A set with this Set Number already exists.";
+            } else if (error.keyPattern?.Name) {
+                message = "A set with this Name already exists.";
+            } else {
+                message = "Duplicate field value entered.";
+            }
         }
-        
-        return res.status(code).json({ message: error.message });
+
+        return res.status(code).json({ message });
     }
-}
+};
+
 
 export const getSet = async (req, res) => {
     const session = await mongoose.startSession();
@@ -132,10 +143,16 @@ export const getAllSets = async (req, res) => {
     }
 };
 
-
+/*
+Expects 
+- ID 
+- Name (Optional)
+- SetNo (Optional)
+*/ 
 export const editSet = async (req, res) => {
     const session = await mongoose.startSession();
-    try{
+
+    try {
         await session.withTransaction(async () => {
             const body = req.body;
 
@@ -144,19 +161,57 @@ export const editSet = async (req, res) => {
             const set = await setModel.findById(body.ID).session(session);
             if (!set) throw new DBError("Set Not Found", 404);
 
-            if (body.Name) set.Name = body.Name;
-            if (body.SetNo) set.SetNo = body.SetNo;
+            if (body.Name && body.Name !== set.Name) {
+                const existingByName = await setModel.findOne({
+                    _id: { $ne: set._id },
+                    Name: body.Name
+                }).session(session);
+                if (existingByName) {
+                    throw new DBError("A set with this Name already exists.", 400);
+                }
+                set.Name = body.Name;
+            }
+
+            if (body.SetNo && body.SetNo !== set.SetNo) {
+                const existingBySetNo = await setModel.findOne({
+                    _id: { $ne: set._id },
+                    SetNo: body.SetNo
+                }).session(session);
+                if (existingBySetNo) {
+                    throw new DBError("A set with this Set Number already exists.", 400);
+                }
+                set.SetNo = body.SetNo;
+            }
 
             await set.save({ session });
         });
+
         session.endSession();
         return res.status(200).json({ setID: req.body.ID, message: "Set successfully edited" });
-    }catch(error){
+
+    } catch (error) {
         session.endSession();
-        const code = error instanceof DBError ? error.statusCode : 500;
-        return res.status(code).json({ message: error.message });        
+
+        let code = 500;
+        let message = error.message;
+
+        if (error instanceof DBError) {
+            code = error.statusCode;
+        } else if (error.code === 11000) { 
+            code = 400;
+            if (error.keyPattern?.SetNo) {
+                message = "A set with this Set Number already exists.";
+            } else if (error.keyPattern?.Name) {
+                message = "A set with this Name already exists.";
+            } else {
+                message = "Duplicate field value entered.";
+            }
+        }
+
+        return res.status(code).json({ message });
     }
-}
+};
+
 
 export const getAllCardsNotInSet = async(req, res) => { 
     const session = await mongoose.startSession(); 

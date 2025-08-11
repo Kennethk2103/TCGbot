@@ -69,13 +69,20 @@ export const addCard = async(req , res) => {
         session.endSession();
 
         let code = 500;
-
-        if(error instanceof DBError) 
-        {
+        let message = error.message;
+    
+        if (error instanceof DBError) {
             code = error.statusCode;
+        } else if (error.code === 11000) { 
+            code = 400;
+            if (error.keyPattern?.Set && error.keyPattern?.Num) {
+                message = "A card with this number already exists in the given set.";
+            } else {
+                message = "Duplicate field value entered.";
+            }
         }
-        
-        return res.status(code).json({ message: error.message });
+    
+        return res.status(code).json({ message });
     }
 }
 
@@ -109,6 +116,16 @@ export const editCard = async (req, res) => {
                 };
             }
 
+            const existingCard = await cardModel.findOne({
+                _id: { $ne: card._id }, 
+                Set: newSetId,
+                Num: newNum
+            }).session(session);
+        
+            if (existingCard) {
+                throw new DBError("A card with this number already exists in the given set.", 400);
+            }
+
             await card.save({ session });
         });
 
@@ -118,8 +135,21 @@ export const editCard = async (req, res) => {
     } catch (error) {
         session.endSession();
 
-        const code = error instanceof DBError ? error.statusCode : 500;
-        return res.status(code).json({ message: error.message });
+        let code = 500;
+        let message = error.message;
+    
+        if (error instanceof DBError) {
+            code = error.statusCode;
+        } else if (error.code === 11000) { 
+            code = 400;
+            if (error.keyPattern?.Set && error.keyPattern?.Num) {
+                message = "A card with this number already exists in the given set.";
+            } else {
+                message = "Duplicate field value entered.";
+            }
+        }
+    
+        return res.status(code).json({ message });
     }
 };
 
@@ -188,45 +218,81 @@ async function internalRemoveFromSet(cardID, session) {
     }
 }
 
-async function internalAddToSet(cardID, setID, session){
-    try{
-        const card = await cardModel.findById(cardID).session(session);
-        const set = await setModel.findById(setID).session(session);
-        if (!card) throw new DBError("Card Not Found", 404);
-        if (!set) throw new DBError("Set Not Found", 404);
+async function internalAddToSet(cardID, setID, newNum, session) {
+    const card = await cardModel.findById(cardID).session(session);
+    const set = await setModel.findById(setID).session(session);
 
-        await setModel.updateOne(
-            { _id: setID },
-            { $addToSet: { cards: cardID } },
-            { session }
-        );
+    if (!card) throw new DBError("Card Not Found", 404);
+    if (!set) throw new DBError("Set Not Found", 404);
 
-        card.Set = setID; 
-        await card.save({ session });
-    }catch (error) {
-        throw error;
+    const finalNum = newNum !== undefined ? newNum : card.Num;
+
+    if (setID) {
+        const existingCard = await cardModel.findOne({
+            _id: { $ne: card._id },
+            Set: setID,
+            Num: finalNum
+        }).session(session);
+
+        if (existingCard) {
+            throw new DBError("A card with this number already exists in the given set.", 400);
+        }
     }
+
+    await setModel.updateOne(
+        { _id: setID },
+        { $addToSet: { cards: cardID } },
+        { session }
+    );
+
+    card.Set = setID;
+    card.Num = finalNum;
+    await card.save({ session });
 }
 
+/*
+EXPECTS: 
+cardID, setID, NewNum
+NewNum is optional!! if left undefined card will try to use the same number 
+*/
 export const addOrMoveTOSet = async (req, res) => {
     const session = await mongoose.startSession();
-    try{
+
+    try {
         await session.withTransaction(async () => {
-            const { cardID, setID } = req.body;
-            if (!cardID) throw new DBError("No cardID provided", 400);  
-            if (!setID) throw new DBError("No setID provided", 400);  
-            
+            const { cardID, setID, NewNum } = req.body;
+
+            if (!cardID) throw new DBError("No cardID provided", 400);
+            if (!setID) throw new DBError("No setID provided", 400);
+
             await internalRemoveFromSet(cardID, session);
-            await internalAddToSet(cardID, setID, session)
-        })
+            await internalAddToSet(cardID, setID, NewNum, session);
+        });
+
         session.endSession();
-        return res.status(200).json({ message: "Card added to set." });
-    }catch (error) {
-        const code = error instanceof DBError ? error.statusCode : 500;
+        return res.status(200).json({ message: "Card added/moved to set." });
+
+    } catch (error) {
         session.endSession();
-        return res.status(code).json({ message: error.message });
+
+        let code = 500;
+        let message = error.message;
+
+        if (error instanceof DBError) {
+            code = error.statusCode;
+        } else if (error.code === 11000) {
+            code = 400;
+            if (error.keyPattern?.Set && error.keyPattern?.Num) {
+                message = "A card with this number already exists in the given set.";
+            } else {
+                message = "Duplicate field value entered.";
+            }
+        }
+
+        return res.status(code).json({ message });
     }
-}
+};
+
 
 export const removeCardFromSet = async (req, res) => {
     const session = await mongoose.startSession();

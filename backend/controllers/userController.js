@@ -8,43 +8,56 @@ import { DBError } from './controllerUtils.js';
 /*
 Expects: Username, DiscordID, Pin
 */
-export const addUser = async(req, res) => {
+export const addUser = async (req, res) => {
     const session = await mongoose.startSession();
-    try{
+    try {
         const savedUser = await session.withTransaction(async () => {
             const body = req.body;
 
-            if(!body.Username) throw new DBError("No Username Was Given", 404)
-            if(!body.DiscordID) throw new DBError("No Discord ID Was Gicen", 404)
-            if(!body.Pin) throw new DBError("No Pin Was Given", 404)
-            
+            if (!body.Username) throw new DBError("No Username Was Given", 404);
+            if (!body.DiscordID) throw new DBError("No Discord ID Was Given", 404);
+            if (!body.Pin) throw new DBError("No Pin Was Given", 404);
+
             let user = new userModel({
                 Username: body.Username,
                 DiscordID: body.DiscordID,
                 Pin: body.Pin,
-            })
-            const savedUser = await user.save({session})
+            });
 
-            if(!savedUser){
-                throw new DBError("Failed to create new user", 500)
+            const savedUser = await user.save({ session });
+
+            if (!savedUser) {
+                throw new DBError("Failed to create new user", 500);
             }
 
-            return savedUser
-        })
+            return savedUser;
+        });
 
         session.endSession();
         return res.status(200).json({ userID: savedUser._id, message: "User successfully created" });
 
-    }catch(error){
+    } catch (error) {
         session.endSession();
         let code = 500;
-        if(error instanceof DBError) 
-        {
+        let message = error.message;
+
+        if (error instanceof DBError) {
             code = error.statusCode;
-        }  
-        return res.status(code).json({ message: error.message });        
+        } else if (error.code === 11000) { 
+            code = 400;
+            if (error.keyPattern?.Username) {
+                message = "Username already in use";
+            } else if (error.keyPattern?.DiscordID) {
+                message = "Discord ID already in use";
+            } else {
+                message = "Duplicate field value entered";
+            }
+        }
+
+        return res.status(code).json({ message });
     }
-}
+};
+
 
 /*
 Expects: DiscordID or UserID, TorF (true or false EXACTLY)

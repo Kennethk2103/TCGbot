@@ -1,8 +1,8 @@
 import mongoose, {Document, Schema} from 'mongoose'; 
 
 const setSchema = new Schema({
-    Name: {type: String, required: true },
-    SetNo: {type: Number, required: true },
+    Name: {type: String, required: true, unique: true },
+    SetNo: {type: Number, required: true, unique: true },
     cards: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Card', default: [] }],
 })
 
