@@ -277,33 +277,34 @@ OPTIONALLY:
 - Rarity 
 - Set (Object ID)
 */ 
-export const getUserCards = async(req, res) => {
+export const getUserCards = async (req, res) => {
     const session = await mongoose.startSession();
-    const { Username, DiscordID, ID } = req.query;
+    const { Username, DiscordID, ID, Name, Rarity, Set } = req.query;
     let foundUser;
-    try{
+    try {
         await session.withTransaction(async () => {
-            if(ID){
-                foundUser = await userModel.findById(ID).populate('Cards').session(session)
+            if (ID) {
+                foundUser = await userModel.findById(ID).session(session);
             }
-            if(!foundUser && Username){
-                foundUser = await userModel.findOne({Username: Username }).populate('Cards').session(session)
-            } 
-
-            if(!foundUser && DiscordID){
-                foundUser = await userModel.findOne({DiscordID: DiscordID}).populate('Cards').session(session)
+            if (!foundUser && Username) {
+                foundUser = await userModel.findOne({ Username }).session(session);
             }
-
-            if(!foundUser){
-                throw new DBError("No User was found.  Please make sure you provided a Username, DiscordID, or ID", 400);
+            if (!foundUser && DiscordID) {
+                foundUser = await userModel.findOne({ DiscordID }).session(session);
             }
-        })
+            if (!foundUser) {
+                throw new DBError("No User was found. Please provide Username, DiscordID, or ID", 400);
+            }
+        });
 
-        let cardFilter = { _id: { $in: foundUser.Cards } };
+        const userCards = foundUser.Cards; 
+        const cardIDs = userCards.map(c => c.card);
+
+        let cardFilter = { _id: { $in: cardIDs } };
 
         if (Name) {
             cardFilter.$or = [
-                { Name: { $regex: Name, $options: "i" } }, 
+                { Name: { $regex: Name, $options: "i" } },
                 { Subtitle: { $regex: Name, $options: "i" } }
             ];
         }
@@ -311,30 +312,36 @@ export const getUserCards = async(req, res) => {
             cardFilter.Rarity = Rarity;
         }
         if (Set) {
-            cardFilter.Set = Set; 
+            cardFilter.Set = Set;
         }
 
-        const cards = await cardModel.find(cardFilter)
-            .session(session);
+        const cards = await cardModel.find(cardFilter).session(session);
+
+        const quantityMap = new Map(userCards.map(c => [c.card.toString(), c.quantity]));
+
+        const cardResponses = cards.map(card => {
+            return {
+                ...card.toObject(),
+                quantity: quantityMap.get(card._id.toString()) || 0,
+                Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
+            };
+        });
 
         session.endSession();
 
-        const cardResponses = cards.map(card => ({
-            ...card.toObject(),
-            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
-        }));
-
-            return res.status(200).json({
-                NumCards: cardResponses.length,
-                UserId: foundUser._id,
-                cards: cardResponses
+        return res.status(200).json({
+            NumCards: cardResponses.length,
+            UserId: foundUser._id,
+            cards: cardResponses
         });
-    }catch (error){
+
+    } catch (error) {
         const code = error instanceof DBError ? error.statusCode : 500;
         session.endSession();
-        return res.status(code).json({ message: error.message });               
+        return res.status(code).json({ message: error.message });
     }
-} 
+};
+
 
 export async function giveDailyPack() {
   const session = await mongoose.startSession();
