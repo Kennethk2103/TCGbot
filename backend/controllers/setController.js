@@ -3,6 +3,11 @@ import cardModel from '../models/card.js'
 import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
 
+/*
+Expects: 
+- Name
+- SetNo
+*/ 
 export const addEmptySet = async (req, res) => {
     const session = await mongoose.startSession();
 

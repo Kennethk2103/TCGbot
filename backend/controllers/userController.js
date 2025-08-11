@@ -113,22 +113,33 @@ export const setAdmin = async(req, res) => {
 /*
 expects the cardID and userID
 */
-async function internalGiveCardToUser(cardID, userID, session){
-    try{
+async function internalGiveCardToUser(cardID, userID, session) {
+    try {
         const card = await cardModel.findById(cardID).session(session);
         const user = await userModel.findById(userID).session(session);
         if (!card) throw new DBError("Card Not Found", 404);
         if (!user) throw new DBError("User Not Found", 404);
 
-        await userModel.updateOne(
-            { _id: userID },
-            { $push: { Cards: cardID } },
+        const updateResult = await userModel.updateOne(
+            { _id: userID, "Cards.card": cardID },
+            { $inc: { "Cards.$.quantity": 1 } },
             { session }
         );
-    }catch (error) {
+
+        if (updateResult.matchedCount === 0) {
+            // Card not found in user's cards, push a new card object
+            await userModel.updateOne(
+                { _id: userID },
+                { $push: { Cards: { card: cardID, quantity: 1 } } },
+                { session }
+            );
+        }
+
+    } catch (error) {
         throw error;
     }
 }
+
 
 async function internalTakeCardFromUser(cardID, userID, session){
     try{
@@ -142,8 +153,12 @@ async function internalTakeCardFromUser(cardID, userID, session){
         if (cardIndex === -1) {
             throw new DBError("User does not have this card", 400);
         }
-        
-        user.Cards.splice(cardIndex, 1);
+
+        if(user.Cards[cardIndex].quantity > 1){
+            user.Cards[cardIndex].quantity -= 1 
+        }else{
+            user.Cards.splice(cardIndex, 1);
+        }
         await user.save({ session });
     }catch{
         throw error; 
@@ -256,6 +271,11 @@ export const getUser = async (req, res) => {
 
 /*
 Expects Username, DiscordID, or ID
+
+OPTIONALLY: 
+- Name (substring of card name or subtitle)
+- Rarity 
+- Set (Object ID)
 */ 
 export const getUserCards = async(req, res) => {
     const session = await mongoose.startSession();
@@ -279,12 +299,30 @@ export const getUserCards = async(req, res) => {
             }
         })
 
+        let cardFilter = { _id: { $in: foundUser.Cards } };
+
+        if (Name) {
+            cardFilter.$or = [
+                { Name: { $regex: Name, $options: "i" } }, 
+                { Subtitle: { $regex: Name, $options: "i" } }
+            ];
+        }
+        if (Rarity) {
+            cardFilter.Rarity = Rarity;
+        }
+        if (Set) {
+            cardFilter.Set = Set; 
+        }
+
+        const cards = await cardModel.find(cardFilter)
+            .session(session);
+
         session.endSession();
 
-        const cardResponses = foundUser.Cards.map(card => ({
+        const cardResponses = cards.map(card => ({
             ...card.toObject(),
             Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
-        }));   
+        }));
 
             return res.status(200).json({
                 NumCards: cardResponses.length,
