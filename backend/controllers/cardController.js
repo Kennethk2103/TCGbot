@@ -26,6 +26,7 @@ export const addCard = async (req, res) => {
             if (!validRarities.includes(body.Rarity)) throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(', ')}`, 400);
             if (!body.Num) throw new DBError("No Num Was Given", 404);
             if (!req.file) throw new DBError("No Artwork Was Given", 404);
+            if (!body.Artist) throw new DBError("No Artist Was Given", 404)
 
             let setId;
             if (body.setRef) {
@@ -45,6 +46,7 @@ export const addCard = async (req, res) => {
                 Rarity: body.Rarity,
                 Set: setId,
                 Num: body.Num,
+                Artist: body.Artist, 
                 Artwork: {
                     data: req.file.buffer,
                     contentType: req.file.mimetype
@@ -112,6 +114,7 @@ export const editCard = async (req, res) => {
                 card.Rarity = body.Rarity;
             }
             if (body.Num) card.Num = body.Num;
+            if (body.Artist) card.Artist = body.Artist
 
             if (body.Artwork) {
                 card.Artwork = {

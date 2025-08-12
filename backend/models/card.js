@@ -6,6 +6,7 @@ const cardSchema = new Schema({
     Rarity: { type: String, enum: ['Common', 'Rare', 'Ultra Rare'], required: true }, 
     Set: { type: mongoose.Schema.Types.ObjectId, ref: 'Set' },
     Num: { type: Number, required: true },
+    Artist: { type: String, required: true},
     Artwork: {
         data: Buffer, 
         contentType: {
