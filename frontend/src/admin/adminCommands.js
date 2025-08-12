@@ -188,11 +188,159 @@ async function giveCard(interaction) {
 
 }
 
+async function deleteCard(interaction) {
+    const cardId = interaction.options.getString("cardid");
+
+    if (!cardId) {
+        return interaction.reply({ content: "Please provide the card ID.", ephemeral: true });
+    }
+
+    //send it to the backend to delete the card
+    try {
+        const returnData = await axios.delete(`${process.env.backendURL}/api/card/delete`, {
+            data: { ID: cardId }
+        });
+
+        if (returnData.status === 200) {
+            return interaction.reply({ content: "Card deleted successfully!", ephemeral: true });
+        } else {
+            return interaction.reply({ content: "Failed to delete card.", ephemeral: true });
+        }
+    } catch (error) {
+        console.error("Error deleting card:", error);
+        return interaction.reply({ content: "An error occurred while deleting the card.", ephemeral: true });
+    }
+
+}
+
+async function deleteSet(interaction) {
+    const setId = interaction.options.getString("setid");
+
+    if (!setId) {
+        return interaction.reply({ content: "Please provide the set ID.", ephemeral: true });
+    }
+
+    //send it to the backend to delete the set
+    try {
+        const returnData = await axios.delete(`${process.env.backendURL}/api/set/delete`, {
+            data: { ID: setId }
+        });
+
+        if (returnData.status === 200) {
+            return interaction.reply({ content: "Set deleted successfully!", ephemeral: true });
+        } else {
+            return interaction.reply({ content: "Failed to delete set.", ephemeral: true });
+        }
+    } catch (error) {
+        console.error("Error deleting set:", error);
+        return interaction.reply({ content: "An error occurred while deleting the set.", ephemeral: true });
+    }
+
+}
+
+async function addSet(interaction) {
+    const name = interaction.options.getString("name");
+    const setNo = interaction.options.getInteger("setno");
+
+    if (!name || !setNo) {
+        return interaction.reply({ content: "Please provide both the name and set number.", ephemeral: true });
+    }
+
+    //send it to the backend to add the set
+    try {
+        const returnData = await axios.post(`${process.env.backendURL}/api/set/add`, { Name: name, SetNo: setNo });
+
+        if (returnData.status === 200) {
+            return interaction.reply({ content: "Set added successfully!", ephemeral: true });
+        } else {
+            return interaction.reply({ content: "Failed to add set.", ephemeral: true });
+        }
+    } catch (error) {
+        console.error("Error adding set:", error);
+        return interaction.reply({ content: "An error occurred while adding the set.", ephemeral: true });
+    }
+}
+
+async function removeCardFromSet(interaction) {
+    const setId = interaction.options.getString("setid");
+    const cardId = interaction.options.getString("cardid");
+
+    if (!setId || !cardId) {
+        return interaction.reply({ content: "Please provide both the set ID and card ID.", ephemeral: true });
+    }
+
+    //send it to the backend to remove the card from the set
+    try {
+        const returnData = await axios.post(`${process.env.backendURL}/api/set/removeCard`, { SetID: setId, CardID: cardId });
+
+        if (returnData.status === 200) {
+            return interaction.reply({ content: "Card removed from set successfully!", ephemeral: true });
+        } else {
+            return interaction.reply({ content: "Failed to remove card from set.", ephemeral: true });
+        }
+    } catch (error) {
+        console.error("Error removing card from set:", error);
+        return interaction.reply({ content: "An error occurred while removing the card from the set.", ephemeral: true });
+    }
+}
+
+async function addOrMoveCardToSet(interaction) {
+    const setId = interaction.options.getString("setid");
+    const cardId = interaction.options.getString("cardid");
+
+    if (!setId || !cardId) {
+        return interaction.reply({ content: "Please provide both the set ID and card ID.", ephemeral: true });
+    }
+
+    //send it to the backend to add or move the card to the set
+    try {
+        const returnData = await axios.post(`${process.env.backendURL}/api/set/addOrMoveCard`, { SetID: setId, CardID: cardId });
+
+        if (returnData.status === 200) {
+            return interaction.reply({ content: "Card added or moved to set successfully!", ephemeral: true });
+        } else {
+            return interaction.reply({ content: "Failed to add or move card to set.", ephemeral: true });
+        }
+    } catch (error) {
+        console.error("Error adding or moving card to set:", error);
+        return interaction.reply({ content: "An error occurred while adding or moving the card to the set.", ephemeral: true });
+    }
+}
+
+async function giveUserCard(interaction) {
+    const userId = interaction.options.getUser("user").id;
+    const cardId = interaction.options.getString("cardid");
+    const amount = interaction.options.getInteger("amount");
+
+    if (!userId || !cardId || !amount) {
+        return interaction.reply({ content: "Please provide the user ID, card ID, and amount.", ephemeral: true });
+    }
+
+    //send it to the backend to give the card to the user
+    try {
+        const returnData = await axios.post(`${process.env.backendURL}/api/user/giveCard`, { DiscordID: userId, CardID: cardId, Amount: amount });
+
+        if (returnData.status === 200) {
+            return interaction.reply({ content: "Card given to user successfully!", ephemeral: true });
+        } else {
+            return interaction.reply({ content: "Failed to give card to user.", ephemeral: true });
+        }
+    } catch (error) {
+        console.error("Error giving card to user:", error);
+        return interaction.reply({ content: "An error occurred while giving the card to the user.", ephemeral: true });
+    }
+}
+
+
 module.exports = {
     addCard,
     removeCard,
+    deleteCard,
+    addOrMoveCardToSet,
+    removeCardFromSet,
+    addSet,
+    deleteSet,
     viewUserInventory,
-    addset, 
     removeSet,
     editCard,
     giveCard
