@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, ActionRowBuilder, SelectMenuBuilder, ComponentType, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, ButtonBuilder, ComponentsV2Assertions, CompressionMethod } = require('discord.js');
 
-import dotenv from 'dotenv';
+const dotenv = require('dotenv');
 
 dotenv.config({ path: 'config.env' });
 
@@ -12,16 +12,43 @@ const backendUrl = process.env.BACKEND_URL || 'http://localhost:5050/api';
 async function makeTradeRequestReply(interaction) {
     //i do not expect this to work first try
 
-    class card {
-        constructor(id, count, name) {
-            this.id = id;
-            this.name = name
-            this.count = count;
-        }
-
+    class Cards {
+        
     }
 
     const components = [];
+
+    const userId = interaction.user.id;
+    const receiverId = interaction.options.getUser('user').id;
+
+    //fetch cards from db for both users
+    let cardsSenderHas = new Map();
+    let cardsReceiverHas = new Map();
+
+    try{
+        const userCardsResponse = await axios.get(`${backendUrl}/user/${userId}/cards`);
+        const receiverCardsResponse = await axios.get(`${backendUrl}/user/${receiverId}/cards`);
+
+        const bodyUser = userCardsResponse.data;
+        const bodyReceiver = receiverCardsResponse.data;
+
+        if (!bodyUser.success || !bodyReceiver.success) {
+            throw new Error("Failed to fetch user cards");
+        }
+
+
+        bodyUser.cards.forEach(card => {
+            cardsSenderHas.set(card._id, { id: card._id, name: card.Name, count: card.quantity });
+        });
+        bodyReceiver.cards.forEach(card => {
+            cardsReceiverHas.set(card._id, { id: card._id, name: card.Name, count: card.quantity });
+        });
+    }catch(error){
+        console.error("Error fetching user cards: ", error);
+        await interaction.reply("Error fetching user cards. Please try again later.");
+        return;
+    }
+    
 
     // i suggest you look at steam trading rhys, this will make more sense, just understand that bc of discord handling of dropdowns
     //basically requires 
@@ -36,66 +63,6 @@ async function makeTradeRequestReply(interaction) {
     let cardsSelectedSender = new Map();
 
     let cardsSelectedForTradeReciever = new Map();
-
-    let cardsSenderHas = new Map([
-        [1, { id: 1, count: 5, name: "Card A" }],
-        [2, { id: 2, count: 3, name: "Card B" }],
-        [3, { id: 3, count: 10, name: "Card C" }]
-    ]);
-
-    let cardsReceiverHas = new Map([
-        [4, { id: 4, count: 2, name: "Card D" }],
-        [5, { id: 5, count: 1, name: "Card E" }],
-        [6, { id: 6, count: 4, name: "Card F" }],
-        [7, { id: 7, count: 3, name: "Card G" }],
-        [8, { id: 8, count: 2, name: "Card H" }],
-        [9, { id: 9, count: 5, name: "Card I" }],
-        [10, { id: 10, count: 1, name: "Card J" }],
-        [11, { id: 11, count: 2, name: "Card K" }],
-        [12, { id: 12, count: 4, name: "Card L" }],
-        [13, { id: 13, count: 3, name: "Card M" }],
-        [14, { id: 14, count: 2, name: "Card N" }],
-        [15, { id: 15, count: 5, name: "Card O" }],
-        [16, { id: 16, count: 1, name: "Card P" }],
-        [17, { id: 17, count: 2, name: "Card Q" }],
-        [18, { id: 18, count: 4, name: "Card R" }],
-        [19, { id: 19, count: 3, name: "Card S" }],
-        [20, { id: 20, count: 2, name: "Card T" }],
-        [21, { id: 21, count: 5, name: "Card U" }],
-        [22, { id: 22, count: 1, name: "Card V" }],
-        [23, { id: 23, count: 2, name: "Card W" }],
-        [24, { id: 24, count: 4, name: "Card X" }],
-        [25, { id: 25, count: 3, name: "Card Y" }],
-        [26, { id: 26, count: 2, name: "Card Z" }],
-        [27, { id: 27, count: 5, name: "Card AA" }],
-        [28, { id: 28, count: 1, name: "Card AB" }],
-        [29, { id: 29, count: 2, name: "Card AC" }],
-        [30, { id: 30, count: 4, name: "Card AD" }],
-        [31, { id: 31, count: 3, name: "Card AE" }],
-        [32, { id: 32, count: 2, name: "Card AF" }],
-        [33, { id: 33, count: 5, name: "Card AG" }],
-        [34, { id: 34, count: 1, name: "Card AH" }],
-        [35, { id: 35, count: 2, name: "Card AI" }],
-        [36, { id: 36, count: 4, name: "Card AJ" }],
-        [37, { id: 37, count: 3, name: "Card AK" }],
-        [38, { id: 38, count: 2, name: "Card AL" }],
-        [39, { id: 39, count: 5, name: "Card AM" }],
-        [40, { id: 40, count: 1, name: "Card AN" }],
-        [41, { id: 41, count: 2, name: "Card AO" }],
-        [42, { id: 42, count: 4, name: "Card AP" }],
-        [43, { id: 43, count: 3, name: "Card AQ" }],
-        [44, { id: 44, count: 2, name: "Card AR" }],
-        [45, { id: 45, count: 5, name: "Card AS" }],
-        [46, { id: 46, count: 1, name: "Card AT" }],
-        [47, { id: 47, count: 2, name: "Card AU" }],
-        [48, { id: 48, count: 4, name: "Card AV" }],
-        [49, { id: 49, count: 3, name: "Card AW" }],
-        [50, { id: 50, count: 2, name: "Card AX" }],
-        [51, { id: 51, count: 5, name: "Card AY" }],
-        [52, { id: 52, count: 1, name: "Card AZ" }],
-        [53, { id: 53, count: 2, name: "Card BA" }],
-        [54, { id: 54, count: 4, name: "Card BB" }]
-    ]);
 
     let cardsReceiverHasArray = Array.from(cardsReceiverHas.values());
     let cardsSenderHasArray = Array.from(cardsSenderHas.values());
@@ -427,35 +394,80 @@ async function makeTradeRequestReply(interaction) {
 async function listCards (interaction) {
 
     const userId = interaction.user.id;
-    const userCards = await axios.get(`${backendUrl}/user/${userId}/cards`);
+    try{
+        const userResponse = await axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: userId } });
+        let userCards = userResponse.data.cards;
+        let outputList = "";
+
+        new Array(userCards).forEach(card => {
+            outputList += `Card Name: ${card.Name}, Quantity: ${card.quantity}\n`;
+        });
+
+         const textoutput = new TextDisplayBuilder().setContent(outputList || "No cards found.").setId("cardListOutput");
+
+        return await interaction.reply([textoutput]);
 
 
-    let outputList = ""
+    }catch(error){
+        console.error("Error fetching user cards: ", error);
+        await interaction.reply("Error fetching user cards. Please try again later.");
+        return;
+    }
+
+
+
 
     
-    
-
-    const textoutput = new TextDisplayBuilder().setContent(outputList || "No cards found.").setId("cardListOutput");
-
-    await interaction.reply([textoutput]);
 }
 
 async function openPack (interaction) {
-    
     try{
+        const userId = interaction.user.id;
+        const set = interaction.options.getNumber('set');
+
+        const response = await axios.post(`${backendUrl}/user/openpack`, { DiscordID: userId, SetNo: set });
+
+        if (response.data.success) {
+            const openedCardsIDArray = response.data.cards;
+
+            const openCardArray = []
+            for (const cardId of openedCardsIDArray) {
+                const cardResponse = await axios.get(`${backendUrl}/card/`, { params: { ID: cardId } });
+                if(cardResponse.data.count < 1){
+                    console.warn(`Card with ID ${cardId} not found or has no cards.`);
+                    continue; // Skip if no cards found
+                }
+                const cardData = cardResponse.data.cards[0];
+                openCardArray.push(`Card Name: ${cardData.Name}, Rarity: ${cardData.Rarity}, Set: ${cardData.Set}`);
+            }
+            
+        } else {
+            await interaction.reply(`Failed to open pack: ${response.data.message}`);
+        }
 
     }
+    catch (error) {
+        console.error("Error opening pack:", error);
+        await interaction.reply("An error occurred while opening the pack. Please try again later.");
+    }
+    
 }
 
 async function viewCard (interaction) {
+    const cardId = interaction.options.getString('cardid');
 
-    let selectedCard = {
-        id: interaction.options.getString("card"),
-        name: "Example Card",
-        description: "This is an example card description.",
-        rarity: "Rare",
-        set: "Example Set",
-        image:[]
+    try {
+        const response = await axios.get(`${backendUrl}/card/`, { params: { ID: cardId } });
+        if (response.data.success) {
+            const cardData = response.data.cards[0];
+            const cardDetails = `Card Name: ${cardData.Name}\nDescription: ${cardData.Subtitle}\nRarity: ${cardData.Rarity}\nSet: ${cardData.Set}\nNum: ${cardData.Num}`;
+            await interaction.reply(cardDetails);
+        } else {
+            await interaction.reply(`Card not found with ID: ${cardId}`);
+        }
+    } catch (error) {
+        console.error("Error fetching card details:", error);
+        await interaction.reply("An error occurred while fetching the card details. Please try again later.");
     }
 
 }

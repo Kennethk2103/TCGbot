@@ -51,7 +51,7 @@ const commands = [
       {
         name: "set",
         description: "The set you want to open",
-        type: ApplicationCommandOptionType.String,
+        type: ApplicationCommandOptionType.Number,
         required: true,
       }
     ]
@@ -97,9 +97,25 @@ const commands = [
       {
         name: "rarity",
         description: "The rarity of the card",
+        choices: [
+                {
+                    "name": "Common",
+                    "value": "Common"
+                },
+                {
+                    "name": "Rare",
+                    "value": "Rare"
+                },
+                {
+                    "name": "Ultra Rare",
+                    "value": "Ultra Rare"
+                }
+            ]
+        ,
         type: ApplicationCommandOptionType.String,
         required: true,
       },
+      
       {
         name: "image",
         description: "The image : )",
@@ -107,7 +123,13 @@ const commands = [
         required: true,
       },
       {
-        name : "num",
+        name: "artist",
+        description: "The artist of the card",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      },
+      {
+        name : "num_in_set",
         description: "The number of the card in the set",
         type: ApplicationCommandOptionType.Integer,
         required: true,
@@ -214,7 +236,7 @@ const commands = [
         required: true,
       },
       {
-        name: "cardId", 
+        name: "cardid", 
         description: "The card you want to give",
         type: ApplicationCommandOptionType.String,
         required: true,

@@ -18,14 +18,17 @@ export const addCard = async(req , res) => {
     try{
         const savedCard = await session.withTransaction(async () => {
             const body = req.body;
+            console.log(req)
 
             if(!body.Name) throw new DBError("No Name Was Given",404)
             if(!body.Subtitle) throw new DBError("No Subtitle Was Given",404)
             if(!body.Rarity) throw new DBError("No Rarity Was Given",404)
             if(!validRarities.includes(body.Rarity)) throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(', ')}`, 400);
             if(!body.Num)throw new DBError("No Num Was Given",404)
-            if(!req.file)throw new DBError("No Artwork Was Given",404)
+            if(!body.Artwork)throw new DBError("No Artwork Was Given",404)
 
+
+            
             let setId
             if(body.Set){
                 const matchset = await setModel.findOne({_id: body.Set}).session(session)
@@ -42,8 +45,8 @@ export const addCard = async(req , res) => {
                 Set: setId,
                 Num: body.Num,
                 Artwork: {
-                    data: req.file.buffer,
-                    contentType: req.file.mimetype
+                    data: body.Artwork.data,
+                    contentType: body.Artwork.contentType
                 }
             })
 
@@ -109,10 +112,10 @@ export const editCard = async (req, res) => {
             }
             if (body.Num) card.Num = body.Num;
 
-            if (req.file) {
+            if (body.Artwork) {
                 card.Artwork = {
-                    data: req.file.buffer,
-                    contentType: req.file.mimetype
+                    data: body.Artwork.data,
+                    contentType: body.Artwork.contentType
                 };
             }
 

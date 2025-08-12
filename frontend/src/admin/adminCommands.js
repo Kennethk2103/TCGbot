@@ -1,5 +1,4 @@
-import axios from "axios";
-
+const axios = require('axios');
 
 async function addCard(interaction) {
 
@@ -8,23 +7,49 @@ async function addCard(interaction) {
     const rarity = interaction.options.getString("rarity");
     const set = interaction.options.getString("set");
     const image = interaction.options.getAttachment("image");
+    const artist = interaction.options.getString("artist");
+    const numInSet = interaction.options.getInteger("num_in_set");
 
-    const num = interaction.options.getInteger("num")
+    console.log("Adding card with details:", {
+        name,
+        description,
+        rarity,
+        set,
+        image,
+    });
 
-    if (!name || !description || !rarity || !set || !image || !num) {
+
+
+
+    if (!name || !description || !rarity || !set || !image || !numInSet || !artist) {
         return interaction.reply({ content: "Please provide all required fields.", ephemeral: true });
     }
 
 
+    //download the image
+    const imageUrl = image.url;
+    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+
     //send it to the backend to add the card
     try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/card/add`, {
+        
+
+        const returnData = await axios.post(`${process.env.backendURL}/api/card/`,{
             Name: name,
-            Description: description,
+            Subtitle: description,
             Rarity: rarity,
             Set: set,
-            Image: image.url,
-            Num: num
+            Num: numInSet,
+            Artwork: {
+                data: imageBuffer,
+                contentType: image.contentType
+            },
+            Artist: artist
+        }, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
         });
 
         if (returnData.status === 200) {
@@ -69,7 +94,10 @@ async function viewUserInventory(interaction) {
 }
 
 async function addset(interaction) {
+
+
     const name = interaction.options.getString("name");
+
 
     if (!name) {
         return interaction.reply({ content: "Please provide the name of the set.", ephemeral: true });
@@ -132,12 +160,15 @@ async function editCard(interaction) {
     //send it to the backend to edit the card
     try {
         const returnData = await axios.put(`${process.env.backendURL}/api/card/edit`, {
-            CardID: cardId,
+            ID: cardId,
             Name: name,
-            Description: description,
+            Subtitle: description,
             Rarity: rarity,
             Set: set,
-            Image: image,
+            Artwork: {
+                data: image.buffer,
+                contentType: image.mimetype
+            },
             Num: num
         });
 
@@ -157,3 +188,12 @@ async function giveCard(interaction) {
 
 }
 
+module.exports = {
+    addCard,
+    removeCard,
+    viewUserInventory,
+    addset, 
+    removeSet,
+    editCard,
+    giveCard
+};
