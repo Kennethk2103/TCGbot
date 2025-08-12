@@ -10,6 +10,7 @@ Subtitle: String
 Rarity: String enum 
 Num: Number 
 setRef: _id (string) OR SetNo (number)
+Artist: String 
 Artwork: file [.jpg, .png, .gif]
 */
 export const addCard = async (req, res) => {
