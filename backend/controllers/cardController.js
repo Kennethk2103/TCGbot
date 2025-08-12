@@ -4,45 +4,39 @@ import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
 
 /*
-Expects 
+Expects:
 Name: String 
 Subtitle: String 
 Rarity: String enum 
 Num: Number 
-Set: _id of type Set 
-If Set is not provided then SetNo must be provided 
+setRef: _id (string) OR SetNo (number)
 Artwork: file [.jpg, .png, .gif]
 */
-export const addCard = async(req , res) => {
+export const addCard = async (req, res) => {
     const session = await mongoose.startSession();
     const validRarities = ['Common', 'Rare', 'Ultra Rare'];
-    try{
+
+    try {
         const savedCard = await session.withTransaction(async () => {
             const body = req.body;
-            console.log(req)
 
-            if(!body.Name) throw new DBError("No Name Was Given",404)
-            if(!body.Subtitle) throw new DBError("No Subtitle Was Given",404)
-            if(!body.Rarity) throw new DBError("No Rarity Was Given",404)
-            if(!validRarities.includes(body.Rarity)) throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(', ')}`, 400);
-            if(!body.Num)throw new DBError("No Num Was Given",404)
-            if(!body.Artwork)throw new DBError("No Artwork Was Given",404)
-  
+            if (!body.Name) throw new DBError("No Name Was Given", 404);
+            if (!body.Subtitle) throw new DBError("No Subtitle Was Given", 404);
+            if (!body.Rarity) throw new DBError("No Rarity Was Given", 404);
+            if (!validRarities.includes(body.Rarity)) throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(', ')}`, 400);
+            if (!body.Num) throw new DBError("No Num Was Given", 404);
+            if (!req.file) throw new DBError("No Artwork Was Given", 404);
+
             let setId;
-            if (body.Set || body.SetNo) {
-                let matchset;
-            
-                if (body.Set) {
-                    matchset = await setModel.findOne({ _id: body.Set }).session(session);
-                } else if (body.SetNo) {
-                    matchset = await setModel.findOne({ SetNo: body.SetNo }).session(session);
+            if (body.setRef) {
+                let set;
+                if (mongoose.Types.ObjectId.isValid(body.setRef)) {
+                    set = await setModel.findById(body.setRef).session(session);
+                } else if (!isNaN(body.setRef)) {
+                    set = await setModel.findOne({ SetNo: Number(body.setRef) }).session(session);
                 }
-            
-                if (!matchset) {
-                    throw new DBError("Given set was not found", 404);
-                }
-            
-                setId = matchset._id;
+                if (!set) throw new DBError("Given set was not found", 404);
+                setId = set._id;
             }
 
             let card = new cardModel({
@@ -52,16 +46,14 @@ export const addCard = async(req , res) => {
                 Set: setId,
                 Num: body.Num,
                 Artwork: {
-                    data: body.Artwork.data,
-                    contentType: body.Artwork.contentType
+                    data: req.file.buffer,
+                    contentType: req.file.mimetype
                 }
-            })
+            });
 
-            const savedCard = await card.save({session})
+            const savedCard = await card.save({ session });
 
-            if(!savedCard){
-                throw new DBError("Failed to create new card", 500)
-            }
+            if (!savedCard) throw new DBError("Failed to create new card", 500);
 
             if (setId) {
                 await setModel.updateOne(
@@ -71,19 +63,20 @@ export const addCard = async(req , res) => {
                 );
             }
 
-            return savedCard
-        })
+            return savedCard;
+        });
+
         session.endSession();
         return res.status(200).json({ cardID: savedCard._id, message: "Card successfully created" });
-    }catch(error){
+    } catch (error) {
         session.endSession();
 
         let code = 500;
         let message = error.message;
-    
+
         if (error instanceof DBError) {
             code = error.statusCode;
-        } else if (error.code === 11000) { 
+        } else if (error.code === 11000) {
             code = 400;
             if (error.keyPattern?.Set && error.keyPattern?.Num) {
                 message = "A card with this number already exists in the given set.";
@@ -91,10 +84,11 @@ export const addCard = async(req , res) => {
                 message = "Duplicate field value entered.";
             }
         }
-    
+
         return res.status(code).json({ message });
     }
-}
+};
+
 
 export const editCard = async (req, res) => {
     const session = await mongoose.startSession();
