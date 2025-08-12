@@ -113,22 +113,33 @@ export const setAdmin = async(req, res) => {
 /*
 expects the cardID and userID
 */
-async function internalGiveCardToUser(cardID, userID, session){
-    try{
+async function internalGiveCardToUser(cardID, userID, session) {
+    try {
         const card = await cardModel.findById(cardID).session(session);
         const user = await userModel.findById(userID).session(session);
         if (!card) throw new DBError("Card Not Found", 404);
         if (!user) throw new DBError("User Not Found", 404);
 
-        await userModel.updateOne(
-            { _id: userID },
-            { $push: { Cards: cardID } },
+        const updateResult = await userModel.updateOne(
+            { _id: userID, "Cards.card": cardID },
+            { $inc: { "Cards.$.quantity": 1 } },
             { session }
         );
-    }catch (error) {
+
+        if (updateResult.matchedCount === 0) {
+            // Card not found in user's cards, push a new card object
+            await userModel.updateOne(
+                { _id: userID },
+                { $push: { Cards: { card: cardID, quantity: 1 } } },
+                { session }
+            );
+        }
+
+    } catch (error) {
         throw error;
     }
 }
+
 
 async function internalTakeCardFromUser(cardID, userID, session){
     try{
@@ -142,8 +153,12 @@ async function internalTakeCardFromUser(cardID, userID, session){
         if (cardIndex === -1) {
             throw new DBError("User does not have this card", 400);
         }
-        
-        user.Cards.splice(cardIndex, 1);
+
+        if(user.Cards[cardIndex].quantity > 1){
+            user.Cards[cardIndex].quantity -= 1 
+        }else{
+            user.Cards.splice(cardIndex, 1);
+        }
         await user.save({ session });
     }catch{
         throw error; 
@@ -256,63 +271,93 @@ export const getUser = async (req, res) => {
 
 /*
 Expects Username, DiscordID, or ID
+
+OPTIONALLY: 
+- Name (substring of card name or subtitle)
+- Rarity 
+- Set (Object ID)
 */ 
-export const getUserCards = async(req, res) => {
+export const getUserCards = async (req, res) => {
     const session = await mongoose.startSession();
-    const { Username, DiscordID, ID } = req.query;
+    const { Username, DiscordID, ID, Name, Rarity, Set } = req.query;
     let foundUser;
-    try{
+    try {
         await session.withTransaction(async () => {
-            if(ID){
-                foundUser = await userModel.findById(ID).populate('Cards').session(session)
+            if (ID) {
+                foundUser = await userModel.findById(ID).session(session);
             }
-            if(!foundUser && Username){
-                foundUser = await userModel.findOne({Username: Username }).populate('Cards').session(session)
-            } 
+            if (!foundUser && Username) {
+                foundUser = await userModel.findOne({ Username }).session(session);
+            }
+            if (!foundUser && DiscordID) {
+                foundUser = await userModel.findOne({ DiscordID }).session(session);
+            }
+            if (!foundUser) {
+                throw new DBError("No User was found. Please provide Username, DiscordID, or ID", 400);
+            }
+        });
 
-            if(!foundUser && DiscordID){
-                foundUser = await userModel.findOne({DiscordID: DiscordID}).populate('Cards').session(session)
-            }
+        const userCards = foundUser.Cards; 
+        const cardIDs = userCards.map(c => c.card);
 
-            if(!foundUser){
-                throw new DBError("No User was found.  Please make sure you provided a Username, DiscordID, or ID", 400);
-            }
-        })
+        let cardFilter = { _id: { $in: cardIDs } };
+
+        if (Name) {
+            cardFilter.$or = [
+                { Name: { $regex: Name, $options: "i" } },
+                { Subtitle: { $regex: Name, $options: "i" } }
+            ];
+        }
+        if (Rarity) {
+            cardFilter.Rarity = Rarity;
+        }
+        if (Set) {
+            cardFilter.Set = Set;
+        }
+
+        const cards = await cardModel.find(cardFilter).session(session);
+
+        const quantityMap = new Map(userCards.map(c => [c.card.toString(), c.quantity]));
+
+        const cardResponses = cards.map(card => {
+            return {
+                ...card.toObject(),
+                quantity: quantityMap.get(card._id.toString()) || 0,
+                Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
+            };
+        });
 
         session.endSession();
 
-        const cardResponses = foundUser.Cards.map(card => ({
-            ...card.toObject(),
-            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
-        }));   
-
-            return res.status(200).json({
-                NumCards: cardResponses.length,
-                UserId: foundUser._id,
-                cards: cardResponses
+        return res.status(200).json({
+            NumCards: cardResponses.length,
+            UserId: foundUser._id,
+            cards: cardResponses
         });
-    }catch (error){
+
+    } catch (error) {
         const code = error instanceof DBError ? error.statusCode : 500;
         session.endSession();
-        return res.status(code).json({ message: error.message });               
+        return res.status(code).json({ message: error.message });
     }
-} 
+};
+
 
 export async function giveDailyPack() {
-  const session = await mongoose.startSession();
-  try {
+    const session = await mongoose.startSession();
+    try {
     await session.withTransaction(async () => {
-      await userModel.updateMany(
-        {packsAvailable: { $lt: 5 }},
-        { $inc: { packsAvailable: 1 } },
-        { session }
-      );
+        await userModel.updateMany(
+            {packsAvailable: { $lt: 5 }},
+            { $inc: { packsAvailable: 1 } },
+            { session }
+        );
     });
-  } catch (error) {
-    console.error('Error giving daily packs:', error);
-  } finally {
-    session.endSession();
-  }
+    } catch (error) {
+        console.error('Error giving daily packs:', error);
+    } finally {
+        session.endSession();
+    }
 }
 
 async function internalEditUser(userID, Pin, packsAvailable, session){

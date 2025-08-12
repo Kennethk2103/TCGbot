@@ -6,7 +6,10 @@ const userSchema = new Schema({
     Pin: {type: String, required: true},
     isAdmin: { type: Boolean, default: false },
     packsAvailable: {type: Number, default: 1}, //This ensures they have one on joining
-    Cards: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Card', default: [] }],
+    Cards: [{
+        card: { type: mongoose.Schema.Types.ObjectId, ref: 'Card' },
+        quantity: { type: Number, default: 1 }
+    }],
     //Trades: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Trade', default: [] }],
 })
 
