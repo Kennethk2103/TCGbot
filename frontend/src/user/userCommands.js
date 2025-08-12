@@ -1,6 +1,12 @@
 const { SlashCommandBuilder, ActionRowBuilder, SelectMenuBuilder, ComponentType, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, ButtonBuilder, ComponentsV2Assertions, CompressionMethod } = require('discord.js');
 
+import dotenv from 'dotenv';
 
+dotenv.config({ path: 'config.env' });
+
+const axios = require('axios');
+
+const backendUrl = process.env.BACKEND_URL || 'http://localhost:5050/api';
 
 
 async function makeTradeRequestReply(interaction) {
@@ -420,12 +426,14 @@ async function makeTradeRequestReply(interaction) {
 
 async function listCards (interaction) {
 
-    let cardMap = new Map()
+    const userId = interaction.user.id;
+    const userCards = await axios.get(`${backendUrl}/user/${userId}/cards`);
+
 
     let outputList = ""
-    cardMap.forEach((value, key) => {
-        outputList += `${value.name} (ID: ${value.id}, Count: ${value.count})\n`;
-    });
+
+    
+    
 
     const textoutput = new TextDisplayBuilder().setContent(outputList || "No cards found.").setId("cardListOutput");
 
@@ -433,7 +441,10 @@ async function listCards (interaction) {
 }
 
 async function openPack (interaction) {
-    await interaction.reply("Opening pack is not implemented yet.");
+    
+    try{
+
+    }
 }
 
 async function viewCard (interaction) {
