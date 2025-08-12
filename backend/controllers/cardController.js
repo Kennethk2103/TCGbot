@@ -9,7 +9,8 @@ Name: String
 Subtitle: String 
 Rarity: String enum 
 Num: Number 
-Set: _id of type Set
+Set: _id of type Set 
+If Set is not provided then SetNo must be provided 
 Artwork: file [.jpg, .png, .gif]
 */
 export const addCard = async(req , res) => {
@@ -26,16 +27,22 @@ export const addCard = async(req , res) => {
             if(!validRarities.includes(body.Rarity)) throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(', ')}`, 400);
             if(!body.Num)throw new DBError("No Num Was Given",404)
             if(!body.Artwork)throw new DBError("No Artwork Was Given",404)
-
-
+  
+            let setId;
+            if (body.Set || body.SetNo) {
+                let matchset;
             
-            let setId
-            if(body.Set){
-                const matchset = await setModel.findOne({_id: body.Set}).session(session)
-                if(!matchset){
-                    throw new DBError("Given set was not found",404)
+                if (body.Set) {
+                    matchset = await setModel.findOne({ _id: body.Set }).session(session);
+                } else if (body.SetNo) {
+                    matchset = await setModel.findOne({ SetNo: body.SetNo }).session(session);
                 }
-                setId = matchset._id
+            
+                if (!matchset) {
+                    throw new DBError("Given set was not found", 404);
+                }
+            
+                setId = matchset._id;
             }
 
             let card = new cardModel({
@@ -221,41 +228,47 @@ async function internalRemoveFromSet(cardID, session) {
     }
 }
 
-async function internalAddToSet(cardID, setID, newNum, session) {
+async function internalAddToSet(cardID, setRef, newNum, session) {
     const card = await cardModel.findById(cardID).session(session);
-    const set = await setModel.findById(setID).session(session);
-
     if (!card) throw new DBError("Card Not Found", 404);
+
+    let set;
+    if (mongoose.Types.ObjectId.isValid(setRef)) {
+        set = await setModel.findById(setRef).session(session);
+    } else if (typeof setRef === 'number') {
+        set = await setModel.findOne({ SetNo: setRef }).session(session);
+    }
+
     if (!set) throw new DBError("Set Not Found", 404);
 
     const finalNum = newNum !== undefined ? newNum : card.Num;
 
-    if (setID) {
-        const existingCard = await cardModel.findOne({
-            _id: { $ne: card._id },
-            Set: setID,
-            Num: finalNum
-        }).session(session);
+    const existingCard = await cardModel.findOne({
+        _id: { $ne: card._id },
+        Set: set._id,
+        Num: finalNum
+    }).session(session);
 
-        if (existingCard) {
-            throw new DBError("A card with this number already exists in the given set.", 400);
-        }
+    if (existingCard) {
+        throw new DBError("A card with this number already exists in the given set.", 400);
     }
 
     await setModel.updateOne(
-        { _id: setID },
+        { _id: set._id },
         { $addToSet: { cards: cardID } },
         { session }
     );
 
-    card.Set = setID;
+    card.Set = set._id;
     card.Num = finalNum;
     await card.save({ session });
 }
 
+
 /*
 EXPECTS: 
-cardID, setID, NewNum
+cardID, setRef, NewNum
+setRef can either be _id or SetNo 
 NewNum is optional!! if left undefined card will try to use the same number 
 */
 export const addOrMoveTOSet = async (req, res) => {
@@ -263,13 +276,22 @@ export const addOrMoveTOSet = async (req, res) => {
 
     try {
         await session.withTransaction(async () => {
-            const { cardID, setID, NewNum } = req.body;
+            const { cardID, setRef, NewNum } = req.body; 
 
             if (!cardID) throw new DBError("No cardID provided", 400);
-            if (!setID) throw new DBError("No setID provided", 400);
+            if (!setRef) throw new DBError("No set reference provided", 400);
+
+            let set;
+            if (mongoose.Types.ObjectId.isValid(setRef)) {
+                set = await setModel.findById(setRef).session(session);
+            } else if (!isNaN(setRef)) {
+                set = await setModel.findOne({ SetNo: Number(setRef) }).session(session);
+            }
+
+            if (!set) throw new DBError("Set Not Found", 404);
 
             await internalRemoveFromSet(cardID, session);
-            await internalAddToSet(cardID, setID, NewNum, session);
+            await internalAddToSet(cardID, set._id, NewNum, session);
         });
 
         session.endSession();
@@ -295,6 +317,7 @@ export const addOrMoveTOSet = async (req, res) => {
         return res.status(code).json({ message });
     }
 };
+
 
 
 export const removeCardFromSet = async (req, res) => {
