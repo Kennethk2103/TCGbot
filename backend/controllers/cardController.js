@@ -3,6 +3,58 @@ import setModel from '../models/set.js'
 import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
 
+
+async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artwork, session) {
+    const validRarities = ['Common', 'Rare', 'Ultra Rare'];
+
+    if (!Name) throw new DBError("No Name Was Given", 404);
+    if (!Subtitle) throw new DBError("No Subtitle Was Given", 404);
+    if (!Rarity) throw new DBError("No Rarity Was Given", 404);
+    if (!validRarities.includes(Rarity)) throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(', ')}`, 400);
+    if (!Num) throw new DBError("No Num Was Given", 404);
+    if (!Artwork) throw new DBError("No Artwork Was Given", 404);
+    if (!Artist) throw new DBError("No Artist Was Given", 404);
+
+    let setId;
+    if (setRef) {
+        let set;
+        if (mongoose.Types.ObjectId.isValid(setRef)) {
+            set = await setModel.findById(setRef).session(session);
+        } else if (!isNaN(setRef)) {
+            set = await setModel.findOne({ SetNo: Number(setRef) }).session(session);
+        }
+        if (!set) throw new DBError("Given set was not found", 404);
+        setId = set._id;
+    }
+
+    let card = new cardModel({
+        Name,
+        Subtitle,
+        Rarity,
+        Set: setId,
+        Num,
+        Artist, 
+        Artwork: {
+            data: Artwork.data,
+            contentType: Artwork.contentType
+        }
+    });
+
+    const savedCard = await card.save({ session });
+
+    if (!savedCard) throw new DBError("Failed to create new card", 500);
+
+    if (setId) {
+        await setModel.updateOne(
+            { _id: setId },
+            { $push: { cards: savedCard._id } },
+            { session }
+        );
+    }
+
+    return savedCard;
+}
+
 /*
 Expects:
 Name: String 
@@ -20,53 +72,11 @@ export const addCard = async (req, res) => {
     try {
         const savedCard = await session.withTransaction(async () => {
             const body = req.body;
-
-            if (!body.Name) throw new DBError("No Name Was Given", 404);
-            if (!body.Subtitle) throw new DBError("No Subtitle Was Given", 404);
-            if (!body.Rarity) throw new DBError("No Rarity Was Given", 404);
-            if (!validRarities.includes(body.Rarity)) throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(', ')}`, 400);
-            if (!body.Num) throw new DBError("No Num Was Given", 404);
-            if (!req.file) throw new DBError("No Artwork Was Given", 404);
-            if (!body.Artist) throw new DBError("No Artist Was Given", 404)
-
-            let setId;
-            if (body.setRef) {
-                let set;
-                if (mongoose.Types.ObjectId.isValid(body.setRef)) {
-                    set = await setModel.findById(body.setRef).session(session);
-                } else if (!isNaN(body.setRef)) {
-                    set = await setModel.findOne({ SetNo: Number(body.setRef) }).session(session);
-                }
-                if (!set) throw new DBError("Given set was not found", 404);
-                setId = set._id;
-            }
-
-            let card = new cardModel({
-                Name: body.Name,
-                Subtitle: body.Subtitle,
-                Rarity: body.Rarity,
-                Set: setId,
-                Num: body.Num,
-                Artist: body.Artist, 
-                Artwork: {
-                    data: req.file.buffer,
-                    contentType: req.file.mimetype
-                }
-            });
-
-            const savedCard = await card.save({ session });
-
-            if (!savedCard) throw new DBError("Failed to create new card", 500);
-
-            if (setId) {
-                await setModel.updateOne(
-                    { _id: setId },
-                    { $push: { cards: savedCard._id } },
-                    { session }
-                );
-            }
-
-            return savedCard;
+            const Artwork = {
+                data: req.file.buffer,
+                contentType: req.file.mimetype
+            };
+            return internaladdCard(body.Name, body.Subtitle, body.Rarity, body.Num, body.setRef, body.Artist, Artwork, session)
         });
 
         session.endSession();
@@ -91,6 +101,40 @@ export const addCard = async (req, res) => {
         return res.status(code).json({ message });
     }
 };
+
+export const addMany = async (req, res) => {
+    const session = await mongoose.startSession();
+    const validRarities = ['Common', 'Rare', 'Ultra Rare'];
+    
+    try{
+
+        const savedCards = await session.withTransaction(async () => {
+            if(!req.file) throw new DBError("No Zipfile Was Given", 404);
+
+
+        
+        })
+
+    }catch(error){
+        session.endSession();
+
+        let code = 500;
+        let message = error.message;
+    
+        if (error instanceof DBError) {
+            code = error.statusCode;
+        } else if (error.code === 11000) { 
+            code = 400;
+            if (error.keyPattern?.Set && error.keyPattern?.Num) {
+                message = "A card with this number already exists in the given set.";
+            } else {
+                message = "Duplicate field value entered.";
+            }
+        }
+    
+        return res.status(code).json({ message });
+    }
+}
 
 
 export const editCard = async (req, res) => {

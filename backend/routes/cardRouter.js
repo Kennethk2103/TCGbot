@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import bodyParser from 'body-parser';
-import { addCard, getCard, removeCardFromSet, deleteCard, editCard, addOrMoveTOSet, getAllCards } from '../controllers/cardController.js';
+import { addCard, getCard, removeCardFromSet, deleteCard, editCard, addOrMoveTOSet, getAllCards, addMany } from '../controllers/cardController.js';
 
 const router = express.Router()
 
@@ -21,10 +21,23 @@ const upload = multer({
     }
 });
 
+const uploadMany = multer({
+    storage,
+    limits: { fileSize: 100 * 1024 * 1024 }, 
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only .zip files are allowed!'), false);
+        }
+    }
+});
+
 
 //Will Want to do some admin stuff here 
 router.post("/", upload.single('Artwork'), addCard)
-router.post("/edit", upload.single('Artwork'), editCard)
+router.post("/many", upload.single('Zipfile'), addMany)
+router.post("/edit", uploadMany.single('Artwork'), editCard)
 router.get("/", getCard)
 router.post("/remove", removeCardFromSet)
 router.delete("/", deleteCard)
