@@ -36,8 +36,8 @@ const uploadMany = multer({
 
 //Will Want to do some admin stuff here 
 router.post("/", upload.single('Artwork'), addCard)
-router.post("/many", upload.single('Zipfile'), addMany)
-router.post("/edit", uploadMany.single('Artwork'), editCard)
+router.post("/many", uploadMany.single('Zipfile'), addMany)
+router.post("/edit", upload.single('Artwork'), editCard)
 router.get("/", getCard)
 router.post("/remove", removeCardFromSet)
 router.delete("/", deleteCard)

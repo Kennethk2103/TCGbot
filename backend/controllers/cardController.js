@@ -2,6 +2,8 @@ import cardModel from '../models/card.js'
 import setModel from '../models/set.js'
 import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
+import AdmZip from "adm-zip";
+import { parse } from "csv-parse/sync"; 
 
 
 async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artwork, session) {
@@ -61,7 +63,7 @@ Name: String
 Subtitle: String 
 Rarity: String enum 
 Num: Number 
-setRef: _id (string) OR SetNo (number)
+setRef: _id (string) OR SetNo (number) (This is optional.  It may be omitted if the card is not part of a set)
 Artist: String 
 Artwork: file [.jpg, .png, .gif]
 */
@@ -76,7 +78,8 @@ export const addCard = async (req, res) => {
                 data: req.file.buffer,
                 contentType: req.file.mimetype
             };
-            return internaladdCard(body.Name, body.Subtitle, body.Rarity, body.Num, body.setRef, body.Artist, Artwork, session)
+            const setRef = row.SetRef?.trim() || null;
+            return internaladdCard(body.Name, body.Subtitle, body.Rarity, body.Num, setRef, body.Artist, Artwork, session)
         });
 
         session.endSession();
@@ -102,28 +105,101 @@ export const addCard = async (req, res) => {
     }
 };
 
+/*
+Expects:
+Zipfile: a zip file containing: 
+1. metadata.csv with columns:
+- Name: String
+- Subtitle: String
+- Rarity: String enum (Common, Rare, Ultra Rare)
+- Num: Number
+- setRef: _id (string) OR SetNo (number)
+- Artist: String
+- ArtworkFile: String (filename of the image in the zip under images/)
+2. images/: a folder containing images with the filenames matching the ArtworkFile column in metadata.csv
+*/
 export const addMany = async (req, res) => {
     const session = await mongoose.startSession();
-    const validRarities = ['Common', 'Rare', 'Ultra Rare'];
-    
-    try{
 
+    try {
         const savedCards = await session.withTransaction(async () => {
-            if(!req.file) throw new DBError("No Zipfile Was Given", 404);
+            if (!req.file) throw new DBError("No Zipfile Was Given", 404);
 
+            const zip = new AdmZip(req.file.buffer);
+            const entries = zip.getEntries();
 
-        
-        })
+            let csvData = null;
+            const images = {};
 
-    }catch(error){
+            for (const entry of entries) {
+                if (entry.isDirectory) continue;
+
+                if (/\.csv$/i.test(entry.entryName)) {
+                    csvData = entry.getData().toString("utf-8");
+                } else if (/images\/.+\.(png|jpe?g|gif)$/i.test(entry.entryName)) {
+                    const filename = entry.entryName.split("/").pop();
+                    images[filename] = {
+                        data: entry.getData(),
+                        contentType: getMimeType(filename) // helper fn below
+                    };
+                }
+            }
+
+            if (!csvData) throw new DBError("metadata.csv not found in zip", 400);
+
+            const records = parse(csvData, {
+                columns: true,  
+                skip_empty_lines: true
+            });
+
+            const created = [];
+            for (const row of records) {
+                const {
+                    Name,
+                    Subtitle,
+                    Rarity,
+                    Num,
+                    setRef,
+                    Artist,
+                    ArtworkFile 
+                } = row;
+
+                const Artwork = images[ArtworkFile];
+                if (!Artwork) throw new DBError(`Image ${ArtworkFile} not found in zip`, 400);
+
+                const card = await internaladdCard(
+                    Name,
+                    Subtitle,
+                    Rarity,
+                    Num,
+                    setRef,
+                    Artist,
+                    Artwork,
+                    session
+                );
+
+                created.push(card);
+            }
+
+            return created;
+        });
+
+        session.endSession();
+        return res.status(200).json({
+            count: savedCards.length,
+            message: "Cards successfully created",
+            cardIDs: savedCards.map(c => c._id)
+        });
+
+    } catch (error) {
         session.endSession();
 
         let code = 500;
         let message = error.message;
-    
+
         if (error instanceof DBError) {
             code = error.statusCode;
-        } else if (error.code === 11000) { 
+        } else if (error.code === 11000) {
             code = 400;
             if (error.keyPattern?.Set && error.keyPattern?.Num) {
                 message = "A card with this number already exists in the given set.";
@@ -131,11 +207,17 @@ export const addMany = async (req, res) => {
                 message = "Duplicate field value entered.";
             }
         }
-    
+
         return res.status(code).json({ message });
     }
-}
+};
 
+function getMimeType(filename) {
+    if (filename.endsWith(".png")) return "image/png";
+    if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) return "image/jpeg";
+    if (filename.endsWith(".gif")) return "image/gif";
+    return "application/octet-stream";
+}
 
 export const editCard = async (req, res) => {
     const session = await mongoose.startSession();
