@@ -1,12 +1,36 @@
 const { SlashCommandBuilder, ActionRowBuilder, SelectMenuBuilder, ComponentType, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, ButtonBuilder, ComponentsV2Assertions, CompressionMethod } = require('discord.js');
-
+const { AttachmentBuilder, EmbedBuilder, MediaGalleryBuilder } = require('discord.js')
+const { Buffer } = require('buffer');
 const dotenv = require('dotenv');
-
+const fs = require('fs');
 dotenv.config({ path: 'config.env' });
 
 const axios = require('axios');
 
 const backendUrl = process.env.BACKEND_URL || 'http://localhost:5050/api';
+
+async function createUser(interaction) {
+    const pin = interaction.options.getString('pin');
+    const discordId = interaction.user.id;
+    const discordUsername = interaction.user.username;
+
+    try {
+        const response = await axios.post(`${backendUrl}/user/`, {
+            Username: discordUsername,
+            DiscordID: discordId,
+            Pin: pin
+        });
+        console.log("Response from backend:", response);
+        return await interaction.reply({content: `Account created successfully! Your Discord ID is ${discordId} and your pin is ${pin}.`, ephemeral: true});
+    } catch (error) {
+        console.error("Error creating user:", error);
+        if(error.response.data?.message){
+            return await interaction.reply({content: `Error creating account: ${error.response.data.message}`, ephemeral: true});
+        }
+        return await interaction.reply({content: "An error occurred while creating your account. Please try again later.", ephemeral: true});
+    }
+}
+
 
 
 async function makeTradeRequestReply(interaction) {
@@ -430,7 +454,7 @@ async function openPack (interaction) {
         const userId = interaction.user.id;
         const set = interaction.options.getNumber('set');
 
-        const response = await axios.post(`${backendUrl}/user/openpack`, { DiscordID: userId, SetNo: set });
+        const response = await axios.post(`${backendUrl}/user/openpack`, { DiscordID: userId, setID: set });
 
         if (response.data.success) {
             const openedCardsIDArray = response.data.cards;
@@ -461,17 +485,53 @@ async function openPack (interaction) {
 
 //implemented front end
 async function viewCard (interaction) {
-    const cardId = interaction.options.getString('cardid');
+    const cardNum = interaction.options.getInteger('cardnumber');
+    const setNum = interaction.options.getInteger('setnumber');
 
     try {
-        const response = await axios.get(`${backendUrl}/card/`, { params: { ID: cardId } });
-        if (response.data.success) {
-            const cardData = response.data.cards[0];
-            const cardDetails = `Card Name: ${cardData.Name}\nDescription: ${cardData.Subtitle}\nRarity: ${cardData.Rarity}\nSet: ${cardData.Set}\nNum: ${cardData.Num}`;
-            await interaction.reply(cardDetails);
-        } else {
-            await interaction.reply(`Card not found with ID: ${cardId}`);
+        const response = await axios.get(`${backendUrl}/card/discordCard/`, { params: { cardNum: cardNum, setNum: setNum } });
+        console.log("Response from backend:", response.data);
+        const artwork = response.data.Artwork;
+        const Name = response.data.Name;
+        const Rarity = response.data.Rarity;
+        const Num = response.data.Num;
+        const artist = response.data.Artist;
+        const subtitle = response.data.Subtitle;
+
+        const cardDetails = `\`\`Card Name: ${Name}\nRarity: ${Rarity}\nSet Number: ${setNum}\nCard Number: ${Num}\nArtist: ${artist}\nSubtitle: ${subtitle}\n\`\``;
+        const sfbuff = new Buffer.from(artwork.split(",")[1], "base64");
+        const text = new TextDisplayBuilder().setContent(cardDetails)
+        //check if the directory exists, if not create it
+        if (!fs.existsSync('./temp')) {
+            fs.mkdirSync('./temp');
         }
+
+        const image = fs.writeFileSync(`./temp/${Name}.png`, sfbuff, (err) => {
+            if (err) {
+                console.error("Error writing image file:", err);
+            }
+        });
+
+      
+
+        await interaction.reply({
+            content: cardDetails,
+            files : [`./temp/${Name}.png`],
+            ephemeral: true
+        });
+
+        //Clean up the temporary file after sending the reply
+        setTimeout(() => {
+            fs.unlink(`./temp/${Name}.png`, (err) => {
+                if (err) {
+                    console.error("Error deleting temporary file:", err);
+                }   
+            });
+        }, 5000); // Adjust the timeout as needed
+
+    
+
+
     } catch (error) {
         console.error("Error fetching card details:", error);
         await interaction.reply("An error occurred while fetching the card details. Please try again later.");
@@ -479,13 +539,38 @@ async function viewCard (interaction) {
 
 }
 
+
+
 async function viewTradeRequests (interaction) {
     await interaction.reply("Viewing trade requests is not implemented yet.");
 }
 
+async function getAllSets(interaction){
+    try {
+        const response = await axios.get(`${backendUrl}/set/all`);
+        console.log("Response from backend:", response.data);
+
+        if (!response.data || !Array.isArray(response.data)) {
+            console.error("Invalid response format:", response.data);
+            await interaction.reply("An error occurred while fetching sets. Please try again later.");
+            return;
+        }
+        const message = response.data.map(set => {
+            return `Set Name: ${set.Name}, Set No: ${set.SetNo}\n ${(set.cards.length!=0) ? "Cards \n " + set.cards.map(card => card.Name + " | " + card.Rarity + " | " + card.Num).join("\n") : "No cards in this set."}`;
+        })
+
+        const textOutput = new TextDisplayBuilder().setContent(message.join("\n\n"));
+        await interaction.reply({ components: [textOutput] , flags: 1 << 15 | 64});
+    } catch (error) {
+        console.error("Error fetching sets:", error);
+        await interaction.reply("An error occurred while fetching sets.");
+    }
+}
 
 exports.makeTradeRequestReply = makeTradeRequestReply;
 exports.listCards = listCards;
 exports.openPack = openPack;
 exports.viewCard = viewCard;
 exports.viewTradeRequests = viewTradeRequests;
+exports.createUser = createUser;
+exports.getAllSets = getAllSets;

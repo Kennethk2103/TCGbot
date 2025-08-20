@@ -15,11 +15,24 @@ const client = new Client({ intents: [IntentsBitField.Flags.Guilds, IntentsBitFi
 
 const rest = new REST({ version: '10' }).setToken(token_discord);
 
-const {makeTradeRequestReply, openPack, viewCard, listCards} = require('./user/userCommands.js');
+const {makeTradeRequestReply, openPack, viewCard, listCards, createUser, getAllSets} = require('./user/userCommands.js');
 
-const { addCard, removeCard, viewUserInventory, addset } = require('./admin/adminCommands.js');
+const { addCard,
+    removeCard,
+    deleteCard,
+    addOrMoveCardToSet,
+    removeCardFromSet,
+    addSet,
+    deleteSet,
+    viewUserInventory,
+    removeSet,
+    editCard,
+    giveCard,
+    setAdmin
+} = require('./admin/adminCommands.js');
 
 client.login(token_discord);
+
 
 client.on('ready', (c) => {
     console.log("Bot is online")
@@ -49,6 +62,11 @@ client.on('interactionCreate', (interaction) => {
         return interaction.reply("Pong!");
     }
 
+    if(interaction.commandName=="initalieze-account"){
+        return createUser(interaction);
+
+    }
+
     if (interaction.commandName == 'list') {
         return listCards(interaction);
     }
@@ -72,21 +90,49 @@ client.on('interactionCreate', (interaction) => {
         return makeTradeRequestReply(interaction);
     }
 
+    if (interaction.commandName=="getallsets"){
+        return getAllSets(interaction);
+    }
+
 
     //admin commands
 
+    if (interaction.commandName == 'addcard') {
+        return addCard(interaction);
+    }
 
+    if (interaction.commandName == 'removecard') {
+        return removeCard(interaction);
+    }
 
+    if (interaction.commandName == 'viewinventory') {
+        return viewUserInventory(interaction);
+    }
 
+    if (interaction.commandName == 'addset') {
+        return addSet(interaction);
+    }
 
+    if (interaction.commandName == 'removeset') {
+        return removeSet(interaction);
+    }
 
-
-
+    if(interaction.commandName == 'setadmin'){
+        return setAdmin(interaction);
+    }
 
     
-
-
 });
+
+
+
+
+
+
+
+
+
+
 
 
 

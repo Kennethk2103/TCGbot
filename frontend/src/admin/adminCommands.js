@@ -41,17 +41,14 @@ async function addCard(interaction) {
             Name: name,
             Subtitle: description,
             Rarity: rarity,
-            Set: set,
+            SetRef: set,
             Num: numInSet,
             Artwork: {
                 data: imageBuffer,
                 contentType: image.contentType
             },
-            Artist: artist
-        }, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
+            Artist: artist,
+            callerID: interaction.user.id
         });
 
         if (returnData.status === 200) {
@@ -92,57 +89,6 @@ async function removeCard(interaction) {
 }
 
 async function viewUserInventory(interaction) {
-
-}
-
-async function addset(interaction) {
-
-
-    const name = interaction.options.getString("name");
-
-
-    if (!name) {
-        return interaction.reply({ content: "Please provide the name of the set.", ephemeral: true });
-    }
-
-    //send it to the backend to add the set
-    try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/set/add`, { Name: name });
-
-        if (returnData.status === 200) {
-            return interaction.reply({ content: "Set added successfully!", ephemeral: true });
-        } else {
-            return interaction.reply({ content: "Failed to add set.", ephemeral: true });
-        }
-    } catch (error) {
-        console.error("Error adding set:", error);
-        return interaction.reply({ content: "An error occurred while adding the set.", ephemeral: true });
-    }
-
-}
-
-async function removeSet(interaction) {
-    const id = interaction.options.getString("id");
-
-    if (!id) {
-        return interaction.reply({ content: "Please provide the ID of the set to remove.", ephemeral: true });
-    }
-
-    //send it to the backend to remove the set
-    try {
-        const returnData = await axios.delete(`${process.env.backendURL}/api/set/remove`, {
-            data: { ID: id }
-        });
-
-        if (returnData.status === 200) {
-            return interaction.reply({ content: "Set removed successfully!", ephemeral: true });
-        } else {
-            return interaction.reply({ content: "Failed to remove set.", ephemeral: true });
-        }
-    } catch (error) {
-        console.error("Error removing set:", error);
-        return interaction.reply({ content: "An error occurred while removing the set.", ephemeral: true });
-    }
 
 }
 
@@ -243,6 +189,7 @@ async function deleteSet(interaction) {
 async function addSet(interaction) {
     const name = interaction.options.getString("name");
     const setNo = interaction.options.getInteger("setno");
+    const DiscordID = interaction.user.id;
 
     if (!name || !setNo) {
         return interaction.reply({ content: "Please provide both the name and set number.", ephemeral: true });
@@ -250,7 +197,7 @@ async function addSet(interaction) {
 
     //send it to the backend to add the set
     try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/set/add`, { Name: name, SetNo: setNo });
+        const returnData = await axios.post(`${process.env.backendURL}/api/set/`, { Name: name, SetNo: setNo, callerID : DiscordID });
 
         if (returnData.status === 200) {
             return interaction.reply({ content: "Set added successfully!", ephemeral: true });
@@ -333,6 +280,34 @@ async function giveUserCard(interaction) {
     }
 }
 
+async function setAdmin(interaction) {
+    const userId = interaction.options.getUser("user").id;
+    const isAdmin = interaction.options.getBoolean("isadmin");
+
+    console.log("Setting admin status for user:", {
+        userId,
+        isAdmin
+    });
+
+    if (!userId || isAdmin === undefined) {
+        return interaction.reply({ content: "Please provide the user ID and admin status.", ephemeral: true });
+    }
+
+    //send it to the backend to set the user as admin
+    try {
+        const returnData = await axios.post(`${process.env.backendURL}/api/user/admin`, { DiscordID: userId, TorF: (isAdmin) ? "true" : "false" });
+
+        if (returnData.status === 200) {
+            return interaction.reply({ content: `User ${isAdmin ? 'set as' : 'removed from'} admin successfully!`, ephemeral: true });
+        } else {
+            return interaction.reply({ content: "Failed to set admin status.", ephemeral: true });
+        }
+    } catch (error) {
+        console.error("Error setting admin status:", error);
+        return interaction.reply({ content: "An error occurred while setting the admin status.", ephemeral: true });
+    }
+}
+
 
 module.exports = {
     addCard,
@@ -343,7 +318,7 @@ module.exports = {
     addSet,
     deleteSet,
     viewUserInventory,
-    removeSet,
     editCard,
-    giveCard
+    giveCard,
+    setAdmin
 };

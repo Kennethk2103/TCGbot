@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import bodyParser from 'body-parser';
-import { addCard, getCard, removeCardFromSet, deleteCard, editCard, addOrMoveTOSet, getAllCards, addMany } from '../controllers/cardController.js';
+import { addCard, getCard, removeCardFromSet, deleteCard, editCard, addOrMoveTOSet, getAllCards, addMany, getCardForDiscordSoIDontWantToDie } from '../controllers/cardController.js';
 import {checkIfAdmin, authWithDiscordId} from '../controllers/controllerUtils.js';
 
 const router = express.Router()
@@ -44,5 +44,5 @@ router.post("/remove", authWithDiscordId, checkIfAdmin, removeCardFromSet)
 router.delete("/", authWithDiscordId, checkIfAdmin, deleteCard)
 router.post("/move", authWithDiscordId, checkIfAdmin, addOrMoveTOSet)
 router.get("/all", authWithDiscordId, getAllCards)
-
+router.get("/discordCard", getCardForDiscordSoIDontWantToDie) //special route to get card by discordID query param
 export default router 

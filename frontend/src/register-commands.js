@@ -15,7 +15,18 @@ const commands = [
     description: 'Pong!',
     permissionsRequired:[8]
   },
-
+  {
+    name:"initalieze-account",
+    description: "Initalieze your account",
+    options: [
+      {
+        name:"pin",
+        description: "The pin you want to use for your account",
+        type: ApplicationCommandOptionType.String,
+        required: true, 
+      }
+    ],
+  },
   {
     name:"list",
     description: "List all the cards you have",
@@ -37,9 +48,15 @@ const commands = [
     description: "View a specific card",
     options: [
       {
-        name: "card",
-        description: "The card you want to view",
-        type: ApplicationCommandOptionType.String,
+        name: "cardnumber",
+        description: "The card number you want to view",
+        type: ApplicationCommandOptionType.Integer,
+        required: true,
+      },
+      {
+        name: "setnumber",
+        description: "The set the card belongs to",
+        type: ApplicationCommandOptionType.Integer,
         required: true,
       }
     ]
@@ -71,6 +88,10 @@ const commands = [
   {
     name:"viewtrades",
     description: "View your trades",
+  },
+  {
+    name:"getallsets",
+    description: "Get all sets",
   },
   {
     name:"addcard",
@@ -147,6 +168,12 @@ const commands = [
         type: ApplicationCommandOptionType.String,
         required: true, 
       },
+      {
+        name: "setno",
+        description: "The set number of the set",
+        type: ApplicationCommandOptionType.Integer,
+        required: true,
+      }
     ],
     permissionsRequired:[8] // Admin permission
   },
@@ -285,7 +312,28 @@ const commands = [
       }
     ],
     permissionsRequired:[8] // Admin permission
+  },
+  {
+    name:"setadmin",
+    description: "Set a user as an admin",
+    options: [
+      {
+        name: "user",
+        description: "The user you want to set as an admin",
+        type: ApplicationCommandOptionType.User,
+        required: true,
+      },
+      {
+        name: "isadmin",
+        description: "Whether the user is an admin or not",
+        type: ApplicationCommandOptionType.Boolean,
+        required: true,
+      }
+
+    ],
+    permissionsRequired:[8] // Admin permission
   }
+
 
 
 ];

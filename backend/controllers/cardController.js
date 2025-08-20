@@ -74,11 +74,12 @@ export const addCard = async (req, res) => {
     try {
         const savedCard = await session.withTransaction(async () => {
             const body = req.body;
+            console.log("Request body:", body);
             const Artwork = {
-                data: req.file.buffer,
-                contentType: req.file.mimetype
+                data: (req.body.Artwork.data) ? req.body.Artwork.data : req.file.buffer,
+                contentType: (req.body.Artwork.contentType) ? req.body.Artwork.contentType : req.file.mimetype
             };
-            const setRef = row.SetRef?.trim() || null;
+            const setRef = req.body.SetRef?.trim() || null;
             return internaladdCard(body.Name, body.Subtitle, body.Rarity, body.Num, setRef, body.Artist, Artwork, session)
         });
 
@@ -504,5 +505,31 @@ export const getAllCards = async (req, res) => {
     }
 }
 
+export const getCardForDiscordSoIDontWantToDie = async (req, res) => {
+    const session = await mongoose.startSession();
+    try {
+        const { setNum, cardNum } = req.query;
+        if (!setNum) throw new DBError("No setNum provided", 400);
+        if (!cardNum) throw new DBError("No cardNum provided", 400);
+
+        let set;
+        if (!isNaN(setNum)) {
+            set = await setModel.findOne({ SetNo: Number(setNum) }).session(session);
+        }
+        if (!set) throw new DBError("Set Not Found", 404);  
+        const card = await cardModel.findOne({ Set: set._id, Num: Number(cardNum) }).session(session);
+        if (!card) throw new DBError("Card Not Found", 404);
+        session.endSession();
+        const cardResponse = {
+            ...card.toObject(),
+            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
+        };
+        return res.status(200).json(cardResponse);
+    } catch (error) {
+        const code = error instanceof DBError ? error.statusCode : 500;
+        session.endSession();
+        return res.status(code).json({ message: error.message });
+    }
+};
 
 //List all cards 

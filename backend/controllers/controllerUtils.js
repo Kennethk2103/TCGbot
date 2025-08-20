@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import User from "../models/user.js";
 dotenv.config();
 
+
 export class DBError extends Error {
   constructor(message, statusCode) {
     super(message); // Call the parent class's constructor with the error message
@@ -19,7 +20,7 @@ export const authWithDiscordId = async (req, res, next) => {
   }
 
   try {
-    const user = await User.findOne({ discordId });
+    const user = await User.findOne({ DiscordID: discordId });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }

@@ -81,7 +81,7 @@ export const setAdmin = async(req, res) => {
             }
             //In case somehow a username and DiscordID were sent, don't use the Username
             if(!user && body.UserID){
-                user = await userModel.findById(userID).session(session);
+                user = await userModel.findById(body.UserID).session(session);
             }
 
             if(!user){
@@ -537,3 +537,5 @@ export const deleteUser = async(req, res) => {
         return res.status(code).json({ message: error.message });  
     }
 }
+
+
