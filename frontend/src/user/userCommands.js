@@ -391,6 +391,9 @@ async function makeTradeRequestReply(interaction) {
 
 }
 
+
+
+//implemented front end
 async function listCards (interaction) {
 
     const userId = interaction.user.id;
@@ -420,6 +423,8 @@ async function listCards (interaction) {
     
 }
 
+
+//implemented front end
 async function openPack (interaction) {
     try{
         const userId = interaction.user.id;
@@ -453,6 +458,8 @@ async function openPack (interaction) {
     
 }
 
+
+//implemented front end
 async function viewCard (interaction) {
     const cardId = interaction.options.getString('cardid');
 
@@ -479,3 +486,6 @@ async function viewTradeRequests (interaction) {
 
 exports.makeTradeRequestReply = makeTradeRequestReply;
 exports.listCards = listCards;
+exports.openPack = openPack;
+exports.viewCard = viewCard;
+exports.viewTradeRequests = viewTradeRequests;

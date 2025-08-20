@@ -15,7 +15,7 @@ const client = new Client({ intents: [IntentsBitField.Flags.Guilds, IntentsBitFi
 
 const rest = new REST({ version: '10' }).setToken(token_discord);
 
-const {makeTradeRequestReply} = require('./user/userCommands.js');
+const {makeTradeRequestReply, openPack, viewCard, listCards} = require('./user/userCommands.js');
 
 const { addCard, removeCard, viewUserInventory, addset } = require('./admin/adminCommands.js');
 
@@ -43,20 +43,43 @@ client.on('interactionCreate', (interaction) => {
     if (!interaction.isChatInputCommand()) return;
     //if interaction is slash commad
 
+
+    //user commands
     if (interaction.commandName == 'ping') {
         return interaction.reply("Pong!");
     }
 
-    if(interaction.commandName=="trade"){
-        const user = interaction.options.getUser("user");
+    if (interaction.commandName == 'list') {
+        return listCards(interaction);
+    }
 
-        // Here you would handle the trade logic
+    if (interaction.commandName == 'makepin') {
+        const pin = interaction.options.getString('pin');
+        //todo
+
+    }
+
+    if (interaction.commandName == 'view') {
+        //todo
+        return viewCard(interaction);
+    }
+
+    if (interaction.commandName == 'open') {
+        return openPack(interaction)
+    }
+
+    if (interaction.commandName == 'trade') {
         return makeTradeRequestReply(interaction);
     }
 
-    if(interaction.commandName == "addcard"){
-        return addCard(interaction);
-    }
+
+    //admin commands
+
+
+
+
+
+
 
 
 

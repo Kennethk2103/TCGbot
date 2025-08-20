@@ -1,5 +1,7 @@
 const axios = require('axios');
 
+const backendURL = process.env.backendURL || 'http://localhost:5050';
+
 async function addCard(interaction) {
 
     const name = interaction.options.getString("name");
