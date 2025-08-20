@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import User from "../models/User.js";
+import User from "../models/user.js";
 dotenv.config();
 
 export class DBError extends Error {
