@@ -473,6 +473,8 @@ async function openPack (interaction) {
         } else {
             await interaction.reply(`Failed to open pack: ${response.data.message}`);
         }
+        const textOutput = new TextDisplayBuilder().setContent(openCardArray.join("\n") || "No cards opened.").setId("openedCardsOutput");
+        await interaction.reply([textOutput]);
 
     }
     catch (error) {

@@ -145,7 +145,7 @@ async function deleteCard(interaction) {
 
     //send it to the backend to delete the card
     try {
-        const returnData = await axios.delete(`${process.env.backendURL}/api/card/delete`, {
+        const returnData = await axios.delete(`${process.env.backendURL}/api/card/`, {
             data: { ID: cardId }
         });
 
@@ -170,7 +170,7 @@ async function deleteSet(interaction) {
 
     //send it to the backend to delete the set
     try {
-        const returnData = await axios.delete(`${process.env.backendURL}/api/set/delete`, {
+        const returnData = await axios.delete(`${process.env.backendURL}/api/set/`, {
             data: { ID: setId }
         });
 
@@ -220,7 +220,7 @@ async function removeCardFromSet(interaction) {
 
     //send it to the backend to remove the card from the set
     try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/set/removeCard`, { SetID: setId, CardID: cardId });
+        const returnData = await axios.post(`${process.env.backendURL}/api/set/removeCard`, { SetID: setId, CardID: cardId, callerID : DiscordID  });
 
         if (returnData.status === 200) {
             return interaction.reply({ content: "Card removed from set successfully!", ephemeral: true });
@@ -267,7 +267,7 @@ async function giveUserCard(interaction) {
 
     //send it to the backend to give the card to the user
     try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/user/giveCard`, { DiscordID: userId, CardID: cardId, Amount: amount });
+        const returnData = await axios.post(`${process.env.backendURL}/api/user/giveCard`, { DiscordID: userId, CardID: cardId, Amount: amount, callerID : DiscordID  });
 
         if (returnData.status === 200) {
             return interaction.reply({ content: "Card given to user successfully!", ephemeral: true });
