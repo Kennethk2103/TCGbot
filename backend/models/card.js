@@ -15,6 +15,7 @@ const cardSchema = new Schema({
             required: true
         } 
     },
+    SearchID: {type: String, required: true},
 });
 
 cardSchema.index(

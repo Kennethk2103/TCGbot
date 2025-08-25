@@ -5,6 +5,15 @@ import { DBError } from './controllerUtils.js';
 import AdmZip from "adm-zip";
 import { parse } from "csv-parse/sync"; 
 
+function generateSearchableID(){
+    const characters = '1234567890'
+    let result = ''
+    for(let i = 0; i < 6; i++){
+        result += characters.charAt(Math.floor(Math.random() * characters.length))
+    }
+    return result
+}
+
 
 async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artwork, session) {
     const validRarities = ['Common', 'Rare', 'Ultra Rare'];
@@ -29,6 +38,16 @@ async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artw
         setId = set._id;
     }
 
+    var foundValidStr = false;
+    while(!foundValidStr){
+        const searchID = generateSearchableID();
+        const existingCard = await cardModel.findOne({ SearchID: searchID }).session(session);
+        if (!existingCard) {
+            foundValidStr = true;
+            card.SearchID = searchID;
+        }
+    }
+
     let card = new cardModel({
         Name,
         Subtitle,
@@ -39,7 +58,8 @@ async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artw
         Artwork: {
             data: Artwork.data,
             contentType: Artwork.contentType
-        }
+        },
+        SearchID: searchID
     });
 
     const savedCard = await card.save({ session });
@@ -84,7 +104,7 @@ export const addCard = async (req, res) => {
         });
 
         session.endSession();
-        return res.status(200).json({ cardID: savedCard._id, message: "Card successfully created" });
+        return res.status(200).json({ cardID: savedCard.searchID, message: "Card successfully created" });
     } catch (error) {
         session.endSession();
 
@@ -230,7 +250,11 @@ export const editCard = async (req, res) => {
 
             if (!body.ID) throw new DBError("No Card ID given!", 404);
 
-            const card = await cardModel.findById(body.ID).session(session);
+                var card = await cardModel.findById(ID).session(session);
+                if(!card){
+                    card = await cardModel.findOne({ SearchID: body.ID }).session(session);
+                }
+                if (!card) throw new DBError("Card Not Found", 404);
             if (!card) throw new DBError("Card Not Found", 404);
 
             if (body.Name) card.Name = body.Name;
@@ -298,13 +322,16 @@ export const getCard = async (req, res) => {
 
         await session.withTransaction(async () => {
             if (ID) {
-                const card = await cardModel.findById(ID).session(session);
+                var card = await cardModel.findById(ID).session(session);
+                if(!card){
+                    card = await cardModel.findOne({ SearchID: ID }).session(session);
+                }
                 if (!card) throw new DBError("Card Not Found", 404);
                 cards = [card];
             } else if (Name) {
                 cards = await cardModel.find({ Name }).session(session);
                 if (cards.length === 0) throw new DBError("No cards found with that name", 404);
-            } else {
+            }else {
                 throw new DBError("No ID or Name provided to search for card(s)", 400);
             }
         });
@@ -332,7 +359,10 @@ export const getCard = async (req, res) => {
 
 async function internalRemoveFromSet(cardID, session) {
     try {
-        const card = await cardModel.findById(cardID).session(session);
+        let card = await cardModel.findById(cardID).session(session);
+        if (!card) {
+            card = await cardModel.findOne({ SearchID: cardID }).session(session);
+        }
         if (!card) throw new DBError("Card Not Found", 404);
 
         const set = await setModel.findById(card.Set).session(session);
@@ -354,7 +384,10 @@ async function internalRemoveFromSet(cardID, session) {
 }
 
 async function internalAddToSet(cardID, setRef, newNum, session) {
-    const card = await cardModel.findById(cardID).session(session);
+    var card = await cardModel.findById(ID).session(session);
+    if(!card){
+        card = await cardModel.findOne({ SearchID: ID }).session(session);
+    }
     if (!card) throw new DBError("Card Not Found", 404);
 
     let set;
@@ -471,7 +504,11 @@ export const deleteCard = async (req, res) => {
             if (!cardID) throw new DBError("No cardID provided", 400);
 
             await internalRemoveFromSet(cardID, session);
-            await cardModel.findByIdAndDelete(cardID).session(session)
+            var deletedcard = await cardModel.findByIdAndDelete(cardID).session(session)
+            if(!deletedcard){
+                deletedcard = await cardModel.findOneAndDelete({ SearchID: cardID }).session(session);
+            }
+            if(!deletedcard) throw new DBError("Card Not Found", 404);
         })
         session.endSession();
         return res.status(200).json({ message: "Card deleted." });
