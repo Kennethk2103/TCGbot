@@ -36,9 +36,9 @@ const uploadMany = multer({
 
 
 //Will Want to do some admin stuff here 
-router.post("/", authWithDiscordId, checkIfAdmin, upload.single('Artwork'), addCard)
+router.post("/", authWithDiscordId, checkIfAdmin, upload.fields([{ name: 'Artwork', maxCount: 1 }, { name: 'Backside', maxCount: 1 }]), addCard)
+router.post("/edit", authWithDiscordId, checkIfAdmin, upload.fields([{ name: 'Artwork', maxCount: 1 }, { name: 'Backside', maxCount: 1 }]), editCard)
 router.post("/many", authWithDiscordId, checkIfAdmin, uploadMany.single('Zipfile'), addMany)
-router.post("/edit", authWithDiscordId, checkIfAdmin, upload.single('Artwork'), editCard)
 router.get("/", getCard)
 router.post("/remove", authWithDiscordId, checkIfAdmin, removeCardFromSet)
 router.delete("/", authWithDiscordId, checkIfAdmin, deleteCard)

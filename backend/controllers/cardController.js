@@ -15,7 +15,7 @@ function generateSearchableID(){
 }
 
 
-async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artwork, session) {
+async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artwork, Backside, Bio, Power, Speed, Special, session) {
     const validRarities = ['Common', 'Rare', 'Ultra Rare'];
 
     if (!Name) throw new DBError("No Name Was Given", 404);
@@ -24,7 +24,16 @@ async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artw
     if (!validRarities.includes(Rarity)) throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(', ')}`, 400);
     if (!Num) throw new DBError("No Num Was Given", 404);
     if (!Artwork) throw new DBError("No Artwork Was Given", 404);
+    if (!Backside) throw new DBError("No Backside Was Given", 404);
     if (!Artist) throw new DBError("No Artist Was Given", 404);
+    if (!Bio) throw new DBError("No Bio Was Given", 404);
+    if (Power === undefined || Power === null) throw new DBError("No Power Was Given", 404);
+    if (Speed === undefined || Speed === null) throw new DBError("No Speed Was Given", 404);
+    if (Special === undefined || Special === null) throw new DBError("No Special Was Given", 404);
+
+    if (Power < 0 || Power > 5) throw new DBError("Power must be between 0 and 5", 400);
+    if (Speed < 0 || Speed > 5) throw new DBError("Speed must be between 0 and 5", 400);
+    if (Special < 0 || Special > 5) throw new DBError("Special must be between 0 and 5", 400);
 
     let setId;
     if (setRef) {
@@ -38,13 +47,13 @@ async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artw
         setId = set._id;
     }
 
+    let searchID;
     var foundValidStr = false;
-    while(!foundValidStr){
-        const searchID = generateSearchableID();
+    while (!foundValidStr) {
+        searchID = generateSearchableID();
         const existingCard = await cardModel.findOne({ SearchID: searchID }).session(session);
         if (!existingCard) {
             foundValidStr = true;
-            card.SearchID = searchID;
         }
     }
 
@@ -54,11 +63,19 @@ async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artw
         Rarity,
         Set: setId,
         Num,
-        Artist, 
+        Artist,
         Artwork: {
             data: Artwork.data,
             contentType: Artwork.contentType
         },
+        Backside: {
+            data: Backside.data,
+            contentType: Backside.contentType
+        },
+        Bio,
+        Power,
+        Speed,
+        Special,
         SearchID: searchID
     });
 
@@ -86,6 +103,11 @@ Num: Number
 setRef: _id (string) OR SetNo (number) (This is optional.  It may be omitted if the card is not part of a set)
 Artist: String 
 Artwork: file [.jpg, .png, .gif]
+Backside: file [.jpg, .png, .gif]
+Bio: String
+Power: Number (0-5)
+Speed: Number (0-5)
+Special: Number (0-5)
 */
 export const addCard = async (req, res) => {
     const session = await mongoose.startSession();
@@ -95,16 +117,38 @@ export const addCard = async (req, res) => {
         const savedCard = await session.withTransaction(async () => {
             const body = req.body;
             console.log("Request body:", body);
+
             const Artwork = {
-                data: (req.body.Artwork.data) ? req.body.Artwork.data : req.file.buffer,
-                contentType: (req.body.Artwork.contentType) ? req.body.Artwork.contentType : req.file.mimetype
+                data: (body.Artwork?.data) ? body.Artwork.data : req.file?.buffer,
+                contentType: (body.Artwork?.contentType) ? body.Artwork.contentType : req.file?.mimetype
             };
-            const setRef = req.body.SetRef?.trim() || null;
-            return internaladdCard(body.Name, body.Subtitle, body.Rarity, body.Num, setRef, body.Artist, Artwork, session)
+
+            const Backside = {
+                data: (body.Backside?.data) ? body.Backside.data : req.file?.backsideBuffer,
+                contentType: (body.Backside?.contentType) ? body.Backside.contentType : req.file?.backsideMimetype
+            };
+
+            const setRef = body.SetRef?.trim() || null;
+
+            return internaladdCard(
+                body.Name,
+                body.Subtitle,
+                body.Rarity,
+                body.Num,
+                setRef,
+                body.Artist,
+                Artwork,
+                Backside,
+                body.Bio,
+                body.Power,
+                body.Speed,
+                body.Special,
+                session
+            );
         });
 
         session.endSession();
-        return res.status(200).json({ cardID: savedCard.searchID, message: "Card successfully created" });
+        return res.status(200).json({ cardID: savedCard.SearchID, message: "Card successfully created" });
     } catch (error) {
         session.endSession();
 
@@ -137,7 +181,12 @@ Zipfile: a zip file containing:
 - setRef: _id (string) OR SetNo (number)
 - Artist: String
 - ArtworkFile: String (filename of the image in the zip under images/)
-2. images/: a folder containing images with the filenames matching the ArtworkFile column in metadata.csv
+- BacksideFile: String (filename of the backside image in the zip under images/)
+- Bio: String
+- Power: Number (0-5)
+- Speed: Number (0-5)
+- Special: Number (0-5)
+2. images/: a folder containing images with the filenames matching the ArtworkFile and BacksideFile columns in metadata.csv
 */
 export const addMany = async (req, res) => {
     const session = await mongoose.startSession();
@@ -161,7 +210,7 @@ export const addMany = async (req, res) => {
                     const filename = entry.entryName.split("/").pop();
                     images[filename] = {
                         data: entry.getData(),
-                        contentType: getMimeType(filename) // helper fn below
+                        contentType: getMimeType(filename)
                     };
                 }
             }
@@ -169,7 +218,7 @@ export const addMany = async (req, res) => {
             if (!csvData) throw new DBError("metadata.csv not found in zip", 400);
 
             const records = parse(csvData, {
-                columns: true,  
+                columns: true,
                 skip_empty_lines: true
             });
 
@@ -182,11 +231,24 @@ export const addMany = async (req, res) => {
                     Num,
                     setRef,
                     Artist,
-                    ArtworkFile 
+                    ArtworkFile,
+                    BacksideFile,
+                    Bio,
+                    Power,
+                    Speed,
+                    Special
                 } = row;
 
                 const Artwork = images[ArtworkFile];
                 if (!Artwork) throw new DBError(`Image ${ArtworkFile} not found in zip`, 400);
+
+                const Backside = images[BacksideFile];
+                if (!Backside) throw new DBError(`Backside image ${BacksideFile} not found in zip`, 400);
+
+                // Convert Power, Speed, Special to numbers
+                const powerNum = Number(Power);
+                const speedNum = Number(Speed);
+                const specialNum = Number(Special);
 
                 const card = await internaladdCard(
                     Name,
@@ -196,6 +258,11 @@ export const addMany = async (req, res) => {
                     setRef,
                     Artist,
                     Artwork,
+                    Backside,
+                    Bio,
+                    powerNum,
+                    speedNum,
+                    specialNum,
                     session
                 );
 
@@ -250,11 +317,10 @@ export const editCard = async (req, res) => {
 
             if (!body.ID) throw new DBError("No Card ID given!", 404);
 
-                var card = await cardModel.findById(ID).session(session);
-                if(!card){
-                    card = await cardModel.findOne({ SearchID: body.ID }).session(session);
-                }
-                if (!card) throw new DBError("Card Not Found", 404);
+            let card = await cardModel.findById(body.ID).session(session);
+            if (!card) {
+                card = await cardModel.findOne({ SearchID: body.ID }).session(session);
+            }
             if (!card) throw new DBError("Card Not Found", 404);
 
             if (body.Name) card.Name = body.Name;
@@ -265,24 +331,39 @@ export const editCard = async (req, res) => {
                 }
                 card.Rarity = body.Rarity;
             }
-            if (body.Num) card.Num = body.Num;
-            if (body.Artist) card.Artist = body.Artist
-
+            if (body.Num !== undefined) card.Num = body.Num;
+            if (body.Artist) card.Artist = body.Artist;
             if (body.Artwork) {
                 card.Artwork = {
                     data: body.Artwork.data,
                     contentType: body.Artwork.contentType
                 };
             }
+            if (body.Bio) card.Bio = body.Bio;
+            if (body.Power !== undefined) {
+                if (body.Power < 0 || body.Power > 5) throw new DBError("Power must be between 0 and 5", 400);
+                card.Power = body.Power;
+            }
+            if (body.Speed !== undefined) {
+                if (body.Speed < 0 || body.Speed > 5) throw new DBError("Speed must be between 0 and 5", 400);
+                card.Speed = body.Speed;
+            }
+            if (body.Special !== undefined) {
+                if (body.Special < 0 || body.Special > 5) throw new DBError("Special must be between 0 and 5", 400);
+                card.Special = body.Special;
+            }
 
-            const existingCard = await cardModel.findOne({
-                _id: { $ne: card._id }, 
-                Set: newSetId,
-                Num: newNum
-            }).session(session);
-        
-            if (existingCard) {
-                throw new DBError("A card with this number already exists in the given set.", 400);
+            // If editing Num or Set, check for duplicate in set
+            if (card.Set && card.Num !== undefined) {
+                const existingCard = await cardModel.findOne({
+                    _id: { $ne: card._id },
+                    Set: card.Set,
+                    Num: card.Num
+                }).session(session);
+
+                if (existingCard) {
+                    throw new DBError("A card with this number already exists in the given set.", 400);
+                }
             }
 
             await card.save({ session });
@@ -296,10 +377,10 @@ export const editCard = async (req, res) => {
 
         let code = 500;
         let message = error.message;
-    
+
         if (error instanceof DBError) {
             code = error.statusCode;
-        } else if (error.code === 11000) { 
+        } else if (error.code === 11000) {
             code = 400;
             if (error.keyPattern?.Set && error.keyPattern?.Num) {
                 message = "A card with this number already exists in the given set.";
@@ -307,7 +388,7 @@ export const editCard = async (req, res) => {
                 message = "Duplicate field value entered.";
             }
         }
-    
+
         return res.status(code).json({ message });
     }
 };
@@ -331,7 +412,7 @@ export const getCard = async (req, res) => {
             } else if (Name) {
                 cards = await cardModel.find({ Name }).session(session);
                 if (cards.length === 0) throw new DBError("No cards found with that name", 404);
-            }else {
+            } else {
                 throw new DBError("No ID or Name provided to search for card(s)", 400);
             }
         });
@@ -340,7 +421,8 @@ export const getCard = async (req, res) => {
 
         const cardResponses = cards.map(card => ({
             ...card.toObject(),
-            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
+            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`,
+            Backside: `data:${card.Backside.contentType};base64,${card.Backside.data.toString('base64')}`
         }));
 
         return res.status(200).json({
@@ -559,7 +641,8 @@ export const getCardForDiscordSoIDontWantToDie = async (req, res) => {
         session.endSession();
         const cardResponse = {
             ...card.toObject(),
-            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
+            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`,
+            Backside: `data:${card.Backside.contentType};base64,${card.Backside.data.toString('base64')}`
         };
         return res.status(200).json(cardResponse);
     } catch (error) {
@@ -568,5 +651,3 @@ export const getCardForDiscordSoIDontWantToDie = async (req, res) => {
         return res.status(code).json({ message: error.message });
     }
 };
-
-//List all cards 
