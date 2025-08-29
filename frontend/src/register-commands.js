@@ -48,17 +48,12 @@ const commands = [
     description: "View a specific card",
     options: [
       {
-        name: "cardnumber",
-        description: "The card number you want to view",
+        name: "cardid",
+        description: "The card ID you want to view",
         type: ApplicationCommandOptionType.Integer,
         required: true,
       },
-      {
-        name: "setnumber",
-        description: "The set the card belongs to",
-        type: ApplicationCommandOptionType.Integer,
-        required: true,
-      }
+
     ]
   },
   {
@@ -145,7 +140,7 @@ const commands = [
       },
       {
         name: "back_image",
-        description: "I WOULD NOT LIKE THEM HERE OR THERE. I WOULD NOT LIKE THEM ANYWHERE.",
+        description: "WOULD YOU LIKE THEM HERE OR THERE?",
         type: ApplicationCommandOptionType.Attachment,
         required: true,
       },
@@ -183,7 +178,7 @@ const commands = [
       {
         name: "special",
         description: "WOULD YOU EAT THEM IN A BOX? WOULD YOU EAT THEM WITH A FOX?",
-        type: ApplicationCommandOptionType.String,
+        type: ApplicationCommandOptionType.Integer,
         required: true,
       }
     ],
@@ -306,7 +301,7 @@ const commands = [
       {
         name: "newspecial",
         description: "The new special of the card",
-        type: ApplicationCommandOptionType.String,
+        type: ApplicationCommandOptionType.Integer,
         required: false,
       }
     ],
@@ -360,7 +355,7 @@ const commands = [
         required: true,
       },
       {
-        name: "card",
+        name: "cardID",
         description: "The card you want to remove",
         type: ApplicationCommandOptionType.String,
         required: true,

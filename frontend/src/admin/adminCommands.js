@@ -11,24 +11,16 @@ async function addCard(interaction) {
     const artist = interaction.options.getString("artist");
     const numInSet = interaction.options.getInteger("num_in_set");
     const frontImage = interaction.options.getAttachment("front_image");
-    const backImage = interaction.options.getAttachment("back_image")
+    const backImage = interaction.options.getAttachment("back_image");
     const bio = interaction.options.getString("bio");
     const power = interaction.options.getInteger("power");
     const speed = interaction.options.getInteger("speed");
-    const special = interaction.options.getString("special");
-
-    console.log("Adding card with details:", {
-        name,
-        description,
-        rarity,
-        set,
-        image,
-    });
+    const special = interaction.options.getInteger("special");
 
 
 
 
-    if (!name || !description || !rarity || !set || !frontImage || !backImage || !numInSet || !artist) {
+    if (!name || !description || !rarity || !set || !frontImage  || !numInSet || !artist) {
         return interaction.reply({ content: "Please provide all required fields.", ephemeral: true });
     }
 
@@ -36,33 +28,37 @@ async function addCard(interaction) {
     //download the image
     const imageUrlFront = frontImage.url;
     const imageResponseFront = await axios.get(imageUrlFront, { responseType: 'arraybuffer' });
-    const imageBufferFront = Buffer.from(imageResponseFront.data, 'binary');
+    const imageBufferFront = Buffer.from(imageResponseFront.data, 'binary').toString('base64');
 
-    const imageUrlBack = backImage.url;
-    const imageResponseBack = await axios.get(imageUrlBack, { responseType: 'arraybuffer' });
-    const imageBufferBack = Buffer.from(imageResponseBack.data, 'binary');
 
+    const imageUrlBack = backImage?.url;
+    let imageBufferBack = null;
+    if (backImage) {
+        const imageResponseBack = await axios.get(imageUrlBack, { responseType: 'arraybuffer' });
+        imageBufferBack = Buffer.from(imageResponseBack.data, 'binary').toString('base64');
+    }
+
+    const id = interaction.user.id;
     //send it to the backend to add the card
     try {
         
 
-        const returnData = await axios.post(`${process.env.backendURL}/api/card/`,{
+        const returnData = await axios.post(`${process.env.backendURL}/api/card/`, body = {
             Name: name,
             Subtitle: description,
             Rarity: rarity,
             SetRef: set,
             Num: numInSet,
             Artist: artist,
-            callerID: interaction.user.id,
+            callerID: id,
             Bio: bio,
             Power: power,
             Speed: speed,
             Special: special,
-            frontImage: { data: imageBufferFront, contentType: frontImage.contentType },
-            backImage: { data: imageBufferBack, contentType: backImage.contentType }
-
-       
-        });
+            Artwork: { data: imageBufferFront, contentType: frontImage.contentType },
+            Backside: imageBufferBack ? { data: imageBufferBack, contentType: backImage.contentType } : null
+        }
+       );
 
         if (returnData.status === 200) {
             return interaction.reply({ content: "Card added successfully!", ephemeral: true });
@@ -138,13 +134,13 @@ async function editCard(interaction) {
     const set = interaction.options.getString("newset");
 
     const frontImage = interaction.options.getAttachment("newfront_image");
-    const backImage = interaction.options.getAttachment("newback_image");
+     const backImage = interaction.options.getAttachment("newback_image");
     const artist = interaction.options.getString("newartist");
     const numInSet = interaction.options.getInteger("newnum");
     const newBio = interaction.options.getString("newbio");
     const newPower = interaction.options.getInteger("newpower");
     const newSpeed = interaction.options.getInteger("newspeed");
-    const newSpecial = interaction.options.getString("newspecial");
+    const newSpecial = interaction.options.getInteger("newspecial");
 
     if (!cardId) {
         return interaction.reply({ content: "Please provide the card ID.", ephemeral: true });
@@ -198,7 +194,7 @@ async function deleteCard(interaction) {
     //send it to the backend to delete the card
     try {
         const returnData = await axios.delete(`${process.env.backendURL}/api/card/`, {
-            data: { ID: cardId }
+            data: { cardID: cardId }
         });
 
         if (returnData.status === 200) {

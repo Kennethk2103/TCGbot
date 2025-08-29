@@ -13,6 +13,7 @@ export class DBError extends Error {
 }
 
 export const authWithDiscordId = async (req, res, next) => {
+  
   const discordId = req.body.callerID;
 
   if (!discordId) {

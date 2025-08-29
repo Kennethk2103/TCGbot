@@ -115,7 +115,7 @@ async function makeTradeRequestReply(interaction) {
         for (let i = currentCardPageForSenderCards * 25; i < Math.min(cardsSenderHasArray.length, (currentCardPageForSenderCards + 1) * 25); i++) {
             const card = cardsSenderHasArray[i];
             optionArray.push({
-                label: `Card Name: ${card.name} (Count: ${card.count})`,
+                label: `Card Name: ${card.Name} (Count: ${card.Count})`,
                 value: card.id.toString(),
             });
 
@@ -430,7 +430,7 @@ async function listCards (interaction) {
             outputList += `Card Name: ${card.Name}, Quantity: ${card.quantity}\n`;
         });
 
-         const textoutput = new TextDisplayBuilder().setContent(outputList || "No cards found.").setId("cardListOutput");
+         const textoutput = new TextDisplayBuilder().setContent(outputList || "No cards found.")
 
         return await interaction.reply([textoutput]);
 
@@ -473,7 +473,7 @@ async function openPack (interaction) {
         } else {
             await interaction.reply(`Failed to open pack: ${response.data.message}`);
         }
-        const textOutput = new TextDisplayBuilder().setContent(openCardArray.join("\n") || "No cards opened.").setId("openedCardsOutput");
+        const textOutput = new TextDisplayBuilder().setContent(openCardArray.join("\n") || "No cards opened.")
         await interaction.reply([textOutput]);
 
     }
@@ -487,20 +487,23 @@ async function openPack (interaction) {
 
 //implemented front end
 async function viewCard (interaction) {
-    const cardNum = interaction.options.getInteger('cardnumber');
-    const setNum = interaction.options.getInteger('setnumber');
+    const cardNum = interaction.options.getInteger('cardid');
 
     try {
         const response = await axios.get(`${backendUrl}/card/discordCard/`, { params: { cardNum: cardNum, setNum: setNum } });
         console.log("Response from backend:", response.data);
         const artwork = response.data.Artwork;
+        const backside = response.data.Backside;
         const Name = response.data.Name;
         const Rarity = response.data.Rarity;
         const Num = response.data.Num;
         const artist = response.data.Artist;
         const subtitle = response.data.Subtitle;
-
-        const cardDetails = `\`\`Card Name: ${Name}\nRarity: ${Rarity}\nSet Number: ${setNum}\nCard Number: ${Num}\nArtist: ${artist}\nSubtitle: ${subtitle}\n\`\``;
+        const id = response.data.searchID;
+        const power = response.data.Power;
+        const speed = response.data.Speed;
+        const special = response.data.Special;
+        const cardDetails = `\`\`Card Name: ${Name}\ID: ${id}\nRarity: ${Rarity}\nSet Number: ${setNum}\nCard Number: ${Num}\nArtist: ${artist}\nSubtitle: ${subtitle}\nPower: ${power}\nSpeed: ${speed}\nSpecial: ${special}\n\`\``;
         const sfbuff = new Buffer.from(artwork.split(",")[1], "base64");
         const text = new TextDisplayBuilder().setContent(cardDetails)
         //check if the directory exists, if not create it
@@ -514,17 +517,29 @@ async function viewCard (interaction) {
             }
         });
 
-      
+        const backsideImg = new Buffer.from(backside.split(",")[1], "base64");
+        const backsideImage = fs.writeFileSync(`./temp/${Name}_back.png`, backsideImg, (err) => {
+            if (err) {
+                console.error("Error writing backside image file:", err);
+            }
+        });
+
+       
 
         await interaction.reply({
             content: cardDetails,
-            files : [`./temp/${Name}.png`],
+            files : [`./temp/${Name}.png`, `./temp/${Name}_back.png`],
             ephemeral: true
         });
 
         //Clean up the temporary file after sending the reply
         setTimeout(() => {
             fs.unlink(`./temp/${Name}.png`, (err) => {
+                if (err) {
+                    console.error("Error deleting temporary file:", err);
+                }   
+            });
+            fs.unlink(`./temp/${Name}_back.png`, (err) => {
                 if (err) {
                     console.error("Error deleting temporary file:", err);
                 }   
@@ -544,7 +559,27 @@ async function viewCard (interaction) {
 
 
 async function viewTradeRequests (interaction) {
-    await interaction.reply("Viewing trade requests is not implemented yet.");
+    const userId = interaction.user.id;
+
+    try {
+        const response = await axios.get(`${backendUrl}/trade/getAll`, { params: { DiscordID: userId } });
+        console.log("Response from backend:", response.data);
+
+        if (!response.data || !Array.isArray(response.data)) {
+            console.error("Invalid response format:", response.data);
+            await interaction.reply("An error occurred while fetching trade requests. Please try again later.");
+            return;
+        }
+        const message = response.data.map(trade => {
+            return `Trade ID: ${trade._id}, From: ${trade.offeringUser}, To: ${trade.receivingUser}\nOffered Cards: ${trade.CardsOffered.map(card => card.Name).join(", ")}\nRequested Cards: ${trade.CardsRequested.map(card => card.Name).join(", ")}`;
+        });
+
+        const textOutput = new TextDisplayBuilder().setContent(message.join("\n\n"));
+        await interaction.reply({ components: [textOutput] , flags: 1 << 15 | 64});
+    } catch (error) {
+        console.error("Error fetching trade requests:", error);
+        await interaction.reply("An error occurred while fetching trade requests.");
+    }
 }
 
 async function getAllSets(interaction){
@@ -558,7 +593,7 @@ async function getAllSets(interaction){
             return;
         }
         const message = response.data.map(set => {
-            return `Set Name: ${set.Name}, Set No: ${set.SetNo}\n ${(set.cards.length!=0) ? "Cards \n " + set.cards.map(card => card.Name + " | " + card.Rarity + " | " + card.Num).join("\n") : "No cards in this set."}`;
+            return `Set Name: ${set.Name}, Set No: ${set.SetNo}\n ${(set.cards.length!=0) ? "Cards \n " + set.cards.map(card => card.Name + " | " + card.Rarity + " | " + card.Num + " | Power " + card.Power + " | Speed " + card.Speed + " | Special : " + card.Special + " | ID : " + card.SearchID).join("\n") : "No cards in this set."}`;
         })
 
         const textOutput = new TextDisplayBuilder().setContent(message.join("\n\n"));
