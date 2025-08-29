@@ -89,6 +89,31 @@ async function removeCard(interaction) {
 }
 
 async function viewUserInventory(interaction) {
+    const userId = interaction.user.id;
+
+    try {
+        const returnData = await axios.get(`${process.env.backendURL}/api/user/cards`, {
+            params: { DiscordID: userId }
+        });
+
+        if (returnData.status === 200) {
+            const inventory = returnData.data.cards;
+            let inventoryMessage = "User Inventory:\n";
+            if(inventory.length === 0) {
+                inventoryMessage += "No cards in inventory.";
+                return interaction.reply({ content: inventoryMessage, ephemeral: true });
+            }
+            inventory.forEach(item => {
+                inventoryMessage += `- ${item.Name} Rarity: ${item.Rarity} Set: ${item.Set} Num: ${item.Num} | Quantity: ${item.Quantity} (ID: ${item.ID})\n`;
+            });
+            return interaction.reply({ content: inventoryMessage, ephemeral: true });
+        } else {
+            return interaction.reply({ content: "Failed to retrieve user inventory.", ephemeral: true });
+        }
+    } catch (error) {
+        console.error("Error retrieving user inventory:", error);
+        return interaction.reply({ content: "An error occurred while retrieving user inventory.", ephemeral: true });
+    }
 
 }
 
@@ -129,10 +154,6 @@ async function editCard(interaction) {
         console.error("Error editing card:", error);
         return interaction.reply({ content: "An error occurred while editing the card.", ephemeral: true });
     }
-
-}
-
-async function giveCard(interaction) {
 
 }
 

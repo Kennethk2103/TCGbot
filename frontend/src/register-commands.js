@@ -138,8 +138,14 @@ const commands = [
       },
       
       {
-        name: "image",
-        description: "The image : )",
+        name: "front_image",
+        description: "The front image of the card",
+        type: ApplicationCommandOptionType.Attachment,
+        required: true,
+      },
+      {
+        name: "back_image",
+        description: "The back image of the card",
         type: ApplicationCommandOptionType.Attachment,
         required: true,
       },
@@ -151,8 +157,33 @@ const commands = [
       },
       {
         name : "num_in_set",
-        description: "The number of the card in the set",
+        description: "I AM SAM. I AM SAM. SAM I AM.THAT SAM-I-AM! THAT SAM-I-AM! I DO NOT LIKE THAT SAM-I-AM!DO WOULD YOU LIKE GREEN EGGS & HAM?I DO NOT LIKE THEM,SAM-I-AM. I DO NOT LIKE GREEN EGGS & HAM.WOULD YOU LIKE THEM HERE OR THERE?I WOULD NOT LIKE THEM HERE OR THERE. I WOULD NOT LIKE THEM ANYWHERE. I DO NOT LIKE GREEN EGGS & HAM. I DO NOT LIKE THEM, SAM-I-AM.WOULD YOU LIKE THEM IN A HOUSE? WOULD YOU LIKE THEN WITH A MOUSE?I DO NOT LIKE THEM IN A HOUSE. I DO NOT LIKE THEM WITH A MOUSE. I DO NOT LIKE THEM HERE OR THERE. I DO NOT LIKE THEM ANYWHERE. I DO NOT LIKE GREEN EGGS & HAM. I DO NOT LIKE THEM, SAM-I-AM.WOULD YOU EAT THEM IN A BOX? WOULD YOU EAT THEM WITH A FOX? NOT IN A BOX. NOT WITH A FOX. NOT IN A HOUSE. NOT WITH A MOUSE. I WOULD NOT EAT THEM HERE OR THERE. I WOULD NOT EAT THEM ANYWHERE. I WOULD NOT EAT GREEN EGGS & HAM. I DO NOT LIKE THEM, SAM-I-AM.WOULD YOU? COULD YOU? IN A CAR? EAT THEM! EAT THEM! HERE THEY ARE.I WOULD NOT, COULD NOT, IN A CAR.",
         type: ApplicationCommandOptionType.Integer,
+        required: true,
+      },
+      {
+        name: "bio",
+        description: "The bio of the card",
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      }
+      ,
+      {
+        name: "power",
+        description: "The power of the card (0-5)",
+        type: ApplicationCommandOptionType.Integer,
+        required: true,
+      },
+      {
+        name: "speed",
+        description: "The speed of the card (0-5)",
+        type: ApplicationCommandOptionType.Integer,
+        required: true,
+      },
+      {
+        name: "special",
+        description: "The special of the card",
+        type: ApplicationCommandOptionType.String,
         required: true,
       }
     ],
@@ -231,9 +262,51 @@ const commands = [
         required: false,
       },
       {
-        name: "newimage",
-        description: "The new image of the card",
+        name: "newfront_image",
+        description: "The new front image of the card",
         type: ApplicationCommandOptionType.Attachment,
+        required: false,
+      },
+      {
+        name: "newback_image",
+        description: "The new back image of the card",
+        type: ApplicationCommandOptionType.Attachment,
+        required: false,
+      },
+      {
+        name: "newartist",
+        description: "The new artist of the card",
+        type: ApplicationCommandOptionType.String,
+        required: false,
+      },
+      {
+        name : "newnum_in_set",
+        description: "The new number in set of the card",
+        type: ApplicationCommandOptionType.Integer,
+        required: false,
+      },
+      {
+        name: "newbio",
+        description: "The new bio of the card",
+        type: ApplicationCommandOptionType.String,
+        required: false,
+      },
+      {
+        name: "newpower",
+        description: "The new power of the card (0-5)",
+        type: ApplicationCommandOptionType.Integer,
+        required: false,
+      },
+      {
+        name: "newspeed",
+        description: "The new speed of the card (0-5)",
+        type: ApplicationCommandOptionType.Integer,
+        required: false,
+      },
+      {
+        name: "newspecial",
+        description: "The new special of the card",
+        type: ApplicationCommandOptionType.String,
         required: false,
       }
     ],
