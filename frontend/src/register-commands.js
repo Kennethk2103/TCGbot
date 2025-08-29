@@ -99,25 +99,25 @@ const commands = [
     options: [
       {
         name: "name",
-        description: "The name of the card",
+        description: "I AM SAM. I AM SAM. SAM I AM.",
         type: ApplicationCommandOptionType.String,
         required: true,
       },
       {
         name: "description",
-        description: "The description of the card",
+        description: "THAT SAM-I-AM! THAT SAM-I-AM! I DO NOT LIKE THAT SAM-I-AM!",
         type: ApplicationCommandOptionType.String,
         required: true,
       },
       {
         name: "set",
-        description: "The set of the card",
+        description: "DO WOULD YOU LIKE GREEN EGGS & HAM?",
         type: ApplicationCommandOptionType.String,
         required: true,
       },
       {
         name: "rarity",
-        description: "The rarity of the card",
+        description: "I DO NOT LIKE THEM,SAM-I-AM. I DO NOT LIKE GREEN EGGS & HAM.",
         choices: [
                 {
                     "name": "Common",
@@ -139,50 +139,50 @@ const commands = [
       
       {
         name: "front_image",
-        description: "The front image of the card",
+        description: "WOULD YOU LIKE THEM HERE OR THERE?",
         type: ApplicationCommandOptionType.Attachment,
         required: true,
       },
       {
         name: "back_image",
-        description: "The back image of the card",
+        description: "I WOULD NOT LIKE THEM HERE OR THERE. I WOULD NOT LIKE THEM ANYWHERE.",
         type: ApplicationCommandOptionType.Attachment,
         required: true,
       },
       {
         name: "artist",
-        description: "The artist of the card",
+        description: "I DO NOT LIKE GREEN EGGS & HAM. I DO NOT LIKE THEM, SAM-I-AM.",
         type: ApplicationCommandOptionType.String,
         required: true,
       },
       {
         name : "num_in_set",
-        description: "I AM SAM. I AM SAM. SAM I AM.THAT SAM-I-AM! THAT SAM-I-AM! I DO NOT LIKE THAT SAM-I-AM!DO WOULD YOU LIKE GREEN EGGS & HAM?I DO NOT LIKE THEM,SAM-I-AM. I DO NOT LIKE GREEN EGGS & HAM.WOULD YOU LIKE THEM HERE OR THERE?I WOULD NOT LIKE THEM HERE OR THERE. I WOULD NOT LIKE THEM ANYWHERE. I DO NOT LIKE GREEN EGGS & HAM. I DO NOT LIKE THEM, SAM-I-AM.WOULD YOU LIKE THEM IN A HOUSE? WOULD YOU LIKE THEN WITH A MOUSE?I DO NOT LIKE THEM IN A HOUSE. I DO NOT LIKE THEM WITH A MOUSE. I DO NOT LIKE THEM HERE OR THERE. I DO NOT LIKE THEM ANYWHERE. I DO NOT LIKE GREEN EGGS & HAM. I DO NOT LIKE THEM, SAM-I-AM.WOULD YOU EAT THEM IN A BOX? WOULD YOU EAT THEM WITH A FOX? NOT IN A BOX. NOT WITH A FOX. NOT IN A HOUSE. NOT WITH A MOUSE. I WOULD NOT EAT THEM HERE OR THERE. I WOULD NOT EAT THEM ANYWHERE. I WOULD NOT EAT GREEN EGGS & HAM. I DO NOT LIKE THEM, SAM-I-AM.WOULD YOU? COULD YOU? IN A CAR? EAT THEM! EAT THEM! HERE THEY ARE.I WOULD NOT, COULD NOT, IN A CAR.",
+        description: "WOULD YOU LIKE THEM IN A HOUSE? WOULD YOU LIKE THEN WITH A MOUSE?",
         type: ApplicationCommandOptionType.Integer,
         required: true,
       },
       {
         name: "bio",
-        description: "The bio of the card",
+        description: "I DO NOT LIKE THEM IN A HOUSE. I DO NOT LIKE THEM WITH A MOUSE. ",
         type: ApplicationCommandOptionType.String,
         required: true,
       }
       ,
       {
         name: "power",
-        description: "The power of the card (0-5)",
+        description: "I DO NOT LIKE THEM HERE OR THERE. I DO NOT LIKE THEM ANYWHERE.",
         type: ApplicationCommandOptionType.Integer,
         required: true,
       },
       {
         name: "speed",
-        description: "The speed of the card (0-5)",
+        description: " I DO NOT LIKE GREEN EGGS & HAM. I DO NOT LIKE THEM, SAM-I-AM.",
         type: ApplicationCommandOptionType.Integer,
         required: true,
       },
       {
         name: "special",
-        description: "The special of the card",
+        description: "WOULD YOU EAT THEM IN A BOX? WOULD YOU EAT THEM WITH A FOX?",
         type: ApplicationCommandOptionType.String,
         required: true,
       }

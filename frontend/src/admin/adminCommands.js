@@ -8,9 +8,14 @@ async function addCard(interaction) {
     const description = interaction.options.getString("description");
     const rarity = interaction.options.getString("rarity");
     const set = interaction.options.getString("set");
-    const image = interaction.options.getAttachment("image");
     const artist = interaction.options.getString("artist");
     const numInSet = interaction.options.getInteger("num_in_set");
+    const frontImage = interaction.options.getAttachment("front_image");
+    const backImage = interaction.options.getAttachment("back_image")
+    const bio = interaction.options.getString("bio");
+    const power = interaction.options.getInteger("power");
+    const speed = interaction.options.getInteger("speed");
+    const special = interaction.options.getString("special");
 
     console.log("Adding card with details:", {
         name,
@@ -23,15 +28,19 @@ async function addCard(interaction) {
 
 
 
-    if (!name || !description || !rarity || !set || !image || !numInSet || !artist) {
+    if (!name || !description || !rarity || !set || !frontImage || !backImage || !numInSet || !artist) {
         return interaction.reply({ content: "Please provide all required fields.", ephemeral: true });
     }
 
 
     //download the image
-    const imageUrl = image.url;
-    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-    const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+    const imageUrlFront = frontImage.url;
+    const imageResponseFront = await axios.get(imageUrlFront, { responseType: 'arraybuffer' });
+    const imageBufferFront = Buffer.from(imageResponseFront.data, 'binary');
+
+    const imageUrlBack = backImage.url;
+    const imageResponseBack = await axios.get(imageUrlBack, { responseType: 'arraybuffer' });
+    const imageBufferBack = Buffer.from(imageResponseBack.data, 'binary');
 
     //send it to the backend to add the card
     try {
@@ -43,12 +52,16 @@ async function addCard(interaction) {
             Rarity: rarity,
             SetRef: set,
             Num: numInSet,
-            Artwork: {
-                data: imageBuffer,
-                contentType: image.contentType
-            },
             Artist: artist,
-            callerID: interaction.user.id
+            callerID: interaction.user.id,
+            Bio: bio,
+            Power: power,
+            Speed: speed,
+            Special: special,
+            frontImage: { data: imageBufferFront, contentType: frontImage.contentType },
+            backImage: { data: imageBufferBack, contentType: backImage.contentType }
+
+       
         });
 
         if (returnData.status === 200) {
@@ -119,12 +132,19 @@ async function viewUserInventory(interaction) {
 
 async function editCard(interaction) {
     const cardId = interaction.options.getString("cardid");
-    const name = interaction.options.getString("name");
-    const description = interaction.options.getString("description");
-    const rarity = interaction.options.getString("rarity");
-    const set = interaction.options.getString("set");
-    const image = interaction.options.getAttachment("image");
-    const num = interaction.options.getInteger("num");
+    const name = interaction.options.getString("newname");
+    const description = interaction.options.getString("newdescription");
+    const rarity = interaction.options.getString("newrarity");
+    const set = interaction.options.getString("newset");
+
+    const frontImage = interaction.options.getAttachment("newfront_image");
+    const backImage = interaction.options.getAttachment("newback_image");
+    const artist = interaction.options.getString("newartist");
+    const numInSet = interaction.options.getInteger("newnum");
+    const newBio = interaction.options.getString("newbio");
+    const newPower = interaction.options.getInteger("newpower");
+    const newSpeed = interaction.options.getInteger("newspeed");
+    const newSpecial = interaction.options.getString("newspecial");
 
     if (!cardId) {
         return interaction.reply({ content: "Please provide the card ID.", ephemeral: true });
@@ -137,12 +157,23 @@ async function editCard(interaction) {
             Name: name,
             Subtitle: description,
             Rarity: rarity,
-            Set: set,
-            Artwork: {
-                data: image.buffer,
-                contentType: image.mimetype
-            },
-            Num: num
+            SetRef: set,
+            Num: numInSet,
+            Artist: artist,
+            Bio: newBio,
+            Power: newPower,
+            Speed: newSpeed,
+            Special: newSpecial,
+            Artwork: frontImage ? {
+                data: (await axios.get(frontImage.url, { responseType: 'arraybuffer' })).data,
+                contentType: frontImage.contentType
+            } : undefined,
+            Backside: backImage ? {
+                data: (await axios.get(backImage.url, { responseType: 'arraybuffer' })).data,
+                contentType: backImage.contentType
+            } : undefined,
+            callerID: interaction.user.id
+            
         });
 
         if (returnData.status === 200) {
@@ -340,6 +371,6 @@ module.exports = {
     deleteSet,
     viewUserInventory,
     editCard,
-    giveCard,
-    setAdmin
+    setAdmin,   
+    giveUserCard
 };
