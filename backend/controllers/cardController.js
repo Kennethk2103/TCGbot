@@ -627,20 +627,20 @@ export const getAllCards = async (req, res) => {
 export const getCardForDiscordSoIDontWantToDie = async (req, res) => {
     const session = await mongoose.startSession();
     try {
-        const { setNum, cardNum } = req.query;
-        if (!setNum) throw new DBError("No setNum provided", 400);
-        if (!cardNum) throw new DBError("No cardNum provided", 400);
+        const { ID } = req.query;
+        if (!ID) throw new DBError("No ID provided", 400);
 
-        let set;
-        if (!isNaN(setNum)) {
-            set = await setModel.findOne({ SetNo: Number(setNum) }).session(session);
+        let card = await cardModel.findOne({ SearchID: ID }).session(session);
+        if (!card) {
+            card = await cardModel.findById(ID).session(session);
         }
-        if (!set) throw new DBError("Set Not Found", 404);  
-        const card = await cardModel.findOne({ Set: set._id, Num: Number(cardNum) }).session(session);
+        const setNum = card.set ? (await setModel.findById(card.Set).session(session)).SetNo : null;
+
         if (!card) throw new DBError("Card Not Found", 404);
         session.endSession();
         const cardResponse = {
             ...card.toObject(),
+            SetNo: setNum,
             Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`,
             Backside: `data:${card.Backside.contentType};base64,${card.Backside.data.toString('base64')}`
         };

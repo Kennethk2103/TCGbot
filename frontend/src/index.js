@@ -15,23 +15,20 @@ const client = new Client({ intents: [IntentsBitField.Flags.Guilds, IntentsBitFi
 
 const rest = new REST({ version: '10' }).setToken(token_discord);
 
-const {makeTradeRequestReply, openPack, viewCard, listCards, createUser, getAllSets} = require('./user/userCommands.js');
+const {commandsUserCard, commandUserCardMap} = require('./user/userCardCommands');
+const {commandsUserSet, commandUserSetMap} = require('./user/userSetCommands');
+const {commandsUserTrade, commandUserTradeMap} = require('./user/userTradeCommands');
+const {commandsUser, commandUserMap} = require('./user/userCommands');
 
-const { addCard,
-    removeCard,
-    deleteCard,
-    addOrMoveCardToSet,
-    removeCardFromSet,
-    addSet,
-    deleteSet,
-    viewUserInventory,
-    removeSet,
-    editCard,
-    giveCard,
-    setAdmin
-} = require('./admin/adminCommands.js');
+const {commandsAdminCard, commandAdminCardMap} = require('./admin/cardAdminCommands');
+const {commandsAdminSet, commandAdminSetMap} = require('./admin/setAdminCommands');
+const {commandsAdminUser, commandAdminUserMap} = require('./admin/userAdminCommands');
+const {adminTradeCommands, adminTradeCommandMap} = require('./admin/tradeAdminCommands');
 
 client.login(token_discord);
+
+//merge all command maps
+const commandMap = new Map([...commandUserCardMap, ...commandUserSetMap, ...commandUserTradeMap, ...commandUserMap, ...commandAdminCardMap, ...commandAdminSetMap, ...commandAdminUserMap, ...adminTradeCommandMap]);
 
 
 client.on('ready', (c) => {
@@ -61,65 +58,14 @@ client.on('interactionCreate', (interaction) => {
     if (interaction.commandName == 'ping') {
         return interaction.reply("Pong!");
     }
-
-    if(interaction.commandName=="initalieze-account"){
-        return createUser(interaction);
-
+    else if (commandMap.has(interaction.commandName)) {
+        const commandFunction = commandMap.get(interaction.commandName);
+        commandFunction(interaction);
+    }
+    else {
+        return interaction.reply("Command not initialized yet");
     }
 
-    if (interaction.commandName == 'list') {
-        return listCards(interaction);
-    }
-
-    if (interaction.commandName == 'makepin') {
-        const pin = interaction.options.getString('pin');
-        //todo
-
-    }
-
-    if (interaction.commandName == 'view') {
-        //todo
-        return viewCard(interaction);
-    }
-
-    if (interaction.commandName == 'open') {
-        return openPack(interaction)
-    }
-
-    if (interaction.commandName == 'trade') {
-        return makeTradeRequestReply(interaction);
-    }
-
-    if (interaction.commandName=="getallsets"){
-        return getAllSets(interaction);
-    }
-
-
-    //admin commands
-
-    if (interaction.commandName == 'addcard') {
-        return addCard(interaction);
-    }
-
-    if (interaction.commandName == 'removecard') {
-        return removeCard(interaction);
-    }
-
-    if (interaction.commandName == 'viewinventory') {
-        return viewUserInventory(interaction);
-    }
-
-    if (interaction.commandName == 'addset') {
-        return addSet(interaction);
-    }
-
-    if (interaction.commandName == 'removeset') {
-        return removeSet(interaction);
-    }
-
-    if(interaction.commandName == 'setadmin'){
-        return setAdmin(interaction);
-    }
 
     
 });
