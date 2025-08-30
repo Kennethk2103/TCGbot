@@ -72,6 +72,36 @@ export const addEmptySet = async (req, res) => {
     }
 };
 
+export const deleteSet = async (req, res) => {
+    const session = await mongoose.startSession();
+    try {
+        await session.withTransaction(async () => {
+            const { ID, SetNo } = req.body;
+            let set;
+
+            if (ID) {
+                set = await setModel.findById(ID).session(session);
+            } else if (SetNo) {
+                set = await setModel.findOne({ SetNo }).session(session);
+            } else {
+                throw new DBError("No Set ID or SetNo provided", 400);
+            }
+
+            if (!set) throw new DBError("Set Not Found", 404);
+
+            await cardModel.deleteMany({ Set: set._id }).session(session);
+            await setModel.deleteOne({ _id: set._id }).session(session);
+        });
+
+        session.endSession();
+        return res.status(200).json({ message: "Set and its cards deleted." });
+    } catch (error) {
+        session.endSession();
+        const code = error instanceof DBError ? error.statusCode : 500;
+        return res.status(code).json({ message: error.message });
+    }
+};
+
 
 export const getSet = async (req, res) => {
     const session = await mongoose.startSession();

@@ -1,6 +1,6 @@
 import express from 'express';
 import bodyParser from 'body-parser';
-import { addEmptySet, getSet, editSet, getAllSets, getAllCardsNotInSet } from '../controllers/setController.js';
+import { addEmptySet, getSet, editSet, getAllSets, getAllCardsNotInSet, deleteSet } from '../controllers/setController.js';
 import {checkIfAdmin, authWithDiscordId} from '../controllers/controllerUtils.js';
 
 
@@ -15,6 +15,7 @@ router.post("/", authWithDiscordId, checkIfAdmin, addEmptySet)
 router.get("/", getSet)
 router.get("/all", getAllSets)
 router.post("/edit", authWithDiscordId, checkIfAdmin, editSet)
+router.delete("/", authWithDiscordId, checkIfAdmin, deleteSet)
 router.get("/notinset", getAllCardsNotInSet)
 
 export default router 
