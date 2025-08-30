@@ -116,6 +116,9 @@ expects the cardID and userID
 async function internalGiveCardToUser(cardID, userID, session) {
     try {
         const card = await cardModel.findById(cardID).session(session);
+        if (!card) {
+            card = await cardModel.findOne({ SearchID: cardID }).session(session);
+        }
         const user = await userModel.findById(userID).session(session);
         if (!card) throw new DBError("Card Not Found", 404);
         if (!user) throw new DBError("User Not Found", 404);
@@ -145,6 +148,9 @@ async function internalTakeCardFromUser(cardID, userID, session){
     try{
         const user = await userModel.findById(userID).session(session);
         const card = await cardModel.findById(cardID).session(session);
+        if(!card){
+            card = await cardModel.findOne({ SearchID: cardID }).session(session);
+        }
         if (!card) throw new DBError("Card Not Found", 404);
         if (!user) throw new DBError("User Not Found", 404);
 

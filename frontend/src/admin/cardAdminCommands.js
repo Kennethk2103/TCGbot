@@ -359,7 +359,7 @@ async function deleteCard(interaction) {
     //send it to the backend to delete the card
     try {
         const returnData = await axios.delete(`${process.env.backendURL}/api/card/`, {
-            data: { cardID: cardId }
+            data: { cardID: cardId , callerID : interaction.user.id }
         });
 
         if (returnData.status === 200) {
@@ -450,7 +450,7 @@ async function addOrMoveCardToSet(interaction) {
 
     //send it to the backend to add or move the card to the set
     try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/set/addOrMoveCard`, { SetID: setId, CardID: cardId });
+        const returnData = await axios.post(`${process.env.backendURL}/api/set/addOrMoveCard`, { SetID: setId, CardID: cardId, callerID : interaction.user.id });
 
         if (returnData.status === 200) {
             return interaction.reply({ content: "Card added or moved to set successfully!", ephemeral: true });

@@ -71,8 +71,8 @@ const deleteSetSlash = {
     description: "Delete a card set (Admin only)",
     options: [
         {
-            name: "setid",
-            description: "The ID of the set to delete",
+            name: "SetNo",
+            description: "The SetNo of the set to delete",
             type: ApplicationCommandOptionType.String,
             required: true,
         }
@@ -82,7 +82,7 @@ const deleteSetSlash = {
     
 }
 async function deleteSet(interaction) {
-    const setId = interaction.options.getString("setid");
+    const setId = interaction.options.getString("SetNo");
     const DiscordID = interaction.user.id;
 
     if (!setId) {
@@ -116,7 +116,7 @@ const editSetSlash = {
     options: [
         {
             name: "currentSetNo",
-            description: "The ID of the set to edit",
+            description: "The SetNo of the set to edit",
             type: ApplicationCommandOptionType.Integer,
             required: true,
         },
@@ -152,6 +152,18 @@ async function editSet(interaction) {
     //send it to the backend to edit the set
     try {
         const returnData = await axios.post(`${process.env.backendURL}/api/set/edit`, { prevSetNo: currentSetNo, Name: newName, SetNo: newSetNo, callerID : DiscordID });
+        if (returnData.status === 200) {
+            return interaction.reply({ content: "Set edited successfully!", ephemeral: true });
+        } else {
+            return interaction.reply({ content: "Failed to edit set.", ephemeral: true });
+        }
+    } catch (error) {
+        console.error("Error editing set:", error);
+        return interaction.reply({ content: "An error occurred while editing the set. " + error.response.data.message, ephemeral: true });
+    }
+}
+commandMap.set(editSetSlash.name, editSet);
+commandsUser.push(editSetSlash);
 
 
 module.exports = {

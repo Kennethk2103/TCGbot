@@ -127,12 +127,6 @@ const giveUserCardSlash = {
             type: ApplicationCommandOptionType.String,
             required: true,
         },
-        {
-            name: "amount",
-            description: "The amount of cards you want to give",
-            type: ApplicationCommandOptionType.Integer,
-            required: true,
-        }
     ],
         permissionsRequired:[8]
 
@@ -141,7 +135,6 @@ const giveUserCardSlash = {
 async function giveUserCard(interaction) {
     const userId = interaction.options.getUser("user").id;
     const cardId = interaction.options.getString("cardid");
-    const amount = interaction.options.getInteger("amount");
 
     if (!userId || !cardId || !amount) {
         return interaction.reply({ content: "Please provide the user ID, card ID, and amount.", ephemeral: true });
@@ -149,7 +142,7 @@ async function giveUserCard(interaction) {
 
     //send it to the backend to give the card to the user
     try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/user/giveCard`, { DiscordID: userId, CardID: cardId, Amount: amount, callerID : DiscordID  });
+        const returnData = await axios.post(`${process.env.backendURL}/api/user/giveCard`, { DiscordID: userId, cardID: cardId, callerID : DiscordID  });
 
         if (returnData.status === 200) {
             return interaction.reply({ content: "Card given to user successfully!", ephemeral: true });
@@ -164,6 +157,51 @@ async function giveUserCard(interaction) {
 commandMap.set(giveUserCardSlash.name, giveUserCard);
 commandsUser.push(giveUserCardSlash);
 
+const removeUserCardSlash = {
+    name: "remove-user-card",
+    description: "Remove a card from a user (Admin only)",
+    options: [
+        {
+            name: "user",
+            description: "The user you want to remove the card from",
+            type: ApplicationCommandOptionType.User,
+            required: true,
+        },
+        {
+            name: "cardid",
+            description: "The ID of the card you want to remove",
+            type: ApplicationCommandOptionType.String,
+            required: true,
+        },
+    ],
+        permissionsRequired:[8]
+
+}
+
+async function removeUserCard(interaction) {
+    const userId = interaction.options.getUser("user").id;
+    const cardId = interaction.options.getString("cardid");
+
+    if (!userId || !cardId) {
+        return interaction.reply({ content: "Please provide the user ID and card ID.", ephemeral: true });
+    }
+
+    //send it to the backend to remove the card from the user
+    try {
+        const returnData = await axios.post(`${process.env.backendURL}/api/user/removeCard`, { DiscordID: userId, cardID: cardId, callerID : DiscordID  });
+
+        if (returnData.status === 200) {
+            return interaction.reply({ content: "Card removed from user successfully!", ephemeral: true });
+        } else {
+            return interaction.reply({ content: "Failed to remove card from user.", ephemeral: true });
+        }
+    } catch (error) {
+        console.error("Error removing card from user:", error);
+        return interaction.reply({ content: "An error occurred while removing the card from the user." + error.response.data.message, ephemeral: true });
+    }
+}
+commandMap.set(removeUserCardSlash.name, removeUserCard);
+commandsUser.push(removeUserCardSlash);
 module.exports = {
     commandsAdminUser: commandsUser,
     commandAdminUserMap: commandMap
