@@ -25,6 +25,10 @@ const initaliezeAccountSlash= {
         }
     ],
 }
+/*
+@Kennethk2103
+Finished
+*/
 async function createUser(interaction) {// Done
     const pin = interaction.options.getString('pin');
     const discordId = interaction.user.id;
@@ -62,15 +66,16 @@ async function listCards (interaction) {
     try{
         const userResponse = await axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: userId } });
         let userCards = userResponse.data.cards;
+        console.log("User cards fetched: ", userCards);
         let outputList = "";
-
+        if (!userCards || userCards.length === 0) {
+            return await interaction.reply({content:"You do not own any cards yet.", ephemeral: true});
+        }
         new Array(userCards).forEach(card => {
             outputList += `Card Name: ${card.Name}, Quantity: ${card.quantity}\n`;
         });
 
-         const textoutput = new TextDisplayBuilder().setContent(outputList || "No cards found.")
-
-        return await interaction.reply([textoutput]);
+        return await interaction.reply({ content: outputList, ephemeral: true });
 
 
     }catch(error){

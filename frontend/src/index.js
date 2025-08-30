@@ -69,18 +69,3 @@ client.on('interactionCreate', (interaction) => {
 
     
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

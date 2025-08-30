@@ -164,7 +164,10 @@ export const editSet = async (req, res) => {
             if (!body.ID) throw new DBError("No Set ID given!", 404);
 
             const set = await setModel.findById(body.ID).session(session);
-            if (!set) throw new DBError("Set Not Found", 404);
+            if (!set){
+                set = await setModel.findOne({ SetNo: body.prevSetNo }).session(session);
+                if(!set) throw new DBError("Set Not Found", 404);
+            }
 
             if (body.Name && body.Name !== set.Name) {
                 const existingByName = await setModel.findOne({
