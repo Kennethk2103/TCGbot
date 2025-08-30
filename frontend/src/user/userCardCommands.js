@@ -76,22 +76,11 @@ async function viewCard (interaction) {// DONE
             ephemeral: true
         });
 
-        //Clean up the temporary file after sending the reply
-        // setTimeout(() => {
-        //     fs.unlink(`./temp/${Name}.${imageType.split("/")[1]}`, (err) => {
-        //         if (err) {
-        //             console.error("Error deleting temporary file:", err);
-        //         }   
-        //     });
-        //     fs.unlink(`./temp/${Name}_back.${backsideImageType.split("/")[1]}`, (err) => {
-        //         if (err) {
-        //             console.error("Error deleting temporary file:", err);
-        //         }   
-        //     });
-        // }, 5000); // Adjust the timeout as needed
-
-    
-
+        // Clean up the temporary file after sending the reply
+        setTimeout(() => {
+            fs.unlinkSync(`./temp/${Name}.${imageType.split("/")[1]}`);
+            fs.unlinkSync(`./temp/${Name}_back.${backsideImageType.split("/")[1]}`);
+        }, 5000); // Adjust the timeout as needed
 
     } catch (error) {
         console.error("Error fetching card details:", error);

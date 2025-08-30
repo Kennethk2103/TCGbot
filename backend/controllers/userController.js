@@ -446,14 +446,17 @@ export const openPack = async(req, res) => {
                 throw new DBError("No User was found.  Please make sure you provided a Username, DiscordID, or ID", 400);
             }    
 
-            if(foundUser.packsAvailable <= 0 ) throw new DBError("User has no packs to open!")
+            //if(foundUser.packsAvailable <= 0 ) throw new DBError("User has no packs to open!")
 
             let setId
             if(body.setID){
                 const matchset = await setModel.findOne({_id: body.setID}).session(session)
-                if(!matchset){
-                    throw new DBError("Given set was not found",404)
-                }
+                if(!matchset) throw new DBError("Set with that ID not found", 404);
+                setId = matchset._id
+            }
+            if(body.setNo){
+                const matchset = await setModel.findOne({SetNo: body.setNo}).session(session)
+                if(!matchset) throw new DBError("Set with that Set Number not found", 404);
                 setId = matchset._id
             }
             
@@ -499,7 +502,6 @@ export const openPack = async(req, res) => {
             await internalGiveCardToUser(card3Doc._id, foundUser._id, session)
 
             await internalEditUser(foundUser._id, undefined, foundUser.packsAvailable-1, session)
-            
             return [card1Doc, card2Doc, card3Doc]
         })
         session.endSession();

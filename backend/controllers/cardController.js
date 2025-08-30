@@ -422,7 +422,7 @@ export const getCard = async (req, res) => {
         const cardResponses = cards.map(card => ({
             ...card.toObject(),
             Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`,
-            Backside: `data:${card.Backside.contentType};base64,${card.Backside.data.toString('base64')}`
+            Backside: (card.backSide) ? `data:${card.backSide.contentType};base64,${card.backSide.data.toString('base64')}` : null
         }));
 
         return res.status(200).json({

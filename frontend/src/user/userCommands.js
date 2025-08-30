@@ -71,8 +71,8 @@ async function listCards (interaction) {
         if (!userCards || userCards.length === 0) {
             return await interaction.reply({content:"You do not own any cards yet.", ephemeral: true});
         }
-        new Array(userCards).forEach(card => {
-            outputList += `Card Name: ${card.Name}, Quantity: ${card.quantity}\n`;
+        userCards.forEach(card => {
+            outputList += `Card Name: ${card.Name}, Rarity: ${card.Rarity}, Quantity: ${card.quantity}\n`;
         });
 
         return await interaction.reply({ content: outputList, ephemeral: true });
@@ -94,7 +94,7 @@ const openPackSlash= {
     options: [
         {
             name: 'set',
-            description: 'The ID of the set you want to open a pack from',
+            description: 'The Set number of the set you want to open a pack from',
             type: ApplicationCommandOptionType.Number,
             required: true,
         }
@@ -105,32 +105,37 @@ async function openPack (interaction) {
         const userId = interaction.user.id;
         const set = interaction.options.getNumber('set');
 
-        const response = await axios.post(`${backendUrl}/user/openpack`, { DiscordID: userId, setID: set });
+        const response = await axios.post(`${backendUrl}/user/open`, { DiscordID: userId, setNo: set });
+            console.log("Pack opened successfully:", response.data);
 
-        if (response.data.success) {
+        const openCardArray = []
+        if (response.data.cards && Array.isArray(response.data.cards)) {
+            
             const openedCardsIDArray = response.data.cards;
 
-            const openCardArray = []
             for (const cardId of openedCardsIDArray) {
                 const cardResponse = await axios.get(`${backendUrl}/card/`, { params: { ID: cardId } });
                 if(cardResponse.data.count < 1){
                     console.warn(`Card with ID ${cardId} not found or has no cards.`);
                     continue; // Skip if no cards found
                 }
+                console.log("Card data fetched: ", cardResponse.data);
                 const cardData = cardResponse.data.cards[0];
-                openCardArray.push(`Card Name: ${cardData.Name}, Rarity: ${cardData.Rarity}, Set: ${cardData.Set}`);
+                openCardArray.push(`Card Name: ${cardData.Name}, Rarity: ${cardData.Rarity}, Num : ${cardData.Num}, Power: ${cardData.Power}, Speed: ${cardData.Speed}, Special: ${cardData.Special}, ID: ${cardData.SearchID}`);
             }
             
         } else {
-            await interaction.reply(`Failed to open pack: ${response.data.message}`);
+            throw new Error("No cards received from the backend.");
+
         }
-        const textOutput = new TextDisplayBuilder().setContent(openCardArray.join("\n") || "No cards opened.")
-        await interaction.reply([textOutput]);
+        const textoutput = "" + openCardArray.join("\n") || "No cards opened."
+        // const textOutput = new TextDisplayBuilder().setContent(openCardArray.join("\n") || "No cards opened.")
+        await interaction.reply(textoutput);
 
     }
     catch (error) {
         console.error("Error opening pack:", error);
-        await interaction.reply("An error occurred while opening the pack. Please try again later.");
+        await interaction.reply("An error occurred while opening the pack. " + (error.response?.data?.message ? `Details: ${error.response.data.message}` : "Please try again later."));
     }
     
 }

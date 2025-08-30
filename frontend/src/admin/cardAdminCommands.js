@@ -405,7 +405,7 @@ async function removeCardFromSet(interaction) {
 
     //send it to the backend to remove the card from the set
     try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/set/removeCard`, { SetID: setId, CardID: cardId, callerID : DiscordID  });
+        const returnData = await axios.post(`${process.env.backendURL}/api/set/remove`, { SetID: setId, CardID: cardId, callerID : interaction.user.id  });
 
         if (returnData.status === 200) {
             return interaction.reply({ content: "Card removed from set successfully!", ephemeral: true });
@@ -426,8 +426,8 @@ const addOrMoveCardToSetSlash =  {
     description: "Add or move a card to a set",
     options: [
       {
-        name: "setid",
-        description: "The ID of the set to add or move the card to",
+        name: "setno",
+        description: "The set number of the set to add or move the card to",
         type: ApplicationCommandOptionType.String,
         required: true,
       },
@@ -441,7 +441,7 @@ const addOrMoveCardToSetSlash =  {
     permissionsRequired:[8] // Admin permission
 };
 async function addOrMoveCardToSet(interaction) {
-    const setId = interaction.options.getString("setid");
+    const setId = interaction.options.getString("setno");
     const cardId = interaction.options.getString("cardid");
 
     if (!setId || !cardId) {
@@ -450,7 +450,7 @@ async function addOrMoveCardToSet(interaction) {
 
     //send it to the backend to add or move the card to the set
     try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/set/addOrMoveCard`, { SetID: setId, CardID: cardId, callerID : interaction.user.id });
+        const returnData = await axios.post(`${process.env.backendURL}/api/set/move`, { SetID: setId, CardID: cardId, callerID : interaction.user.id });
 
         if (returnData.status === 200) {
             return interaction.reply({ content: "Card added or moved to set successfully!", ephemeral: true });
