@@ -71,7 +71,7 @@ const deleteSetSlash = {
     description: "Delete a card set (Admin only)",
     options: [
         {
-            name: "SetNo",
+            name: "setno",
             description: "The SetNo of the set to delete",
             type: ApplicationCommandOptionType.String,
             required: true,
@@ -82,7 +82,7 @@ const deleteSetSlash = {
     
 }
 async function deleteSet(interaction) {
-    const setId = interaction.options.getString("SetNo");
+    const setId = interaction.options.getString("setno");
     const DiscordID = interaction.user.id;
 
     if (!setId) {
@@ -115,19 +115,19 @@ const editSetSlash = {
     description: "Edit a card set (Admin only)",
     options: [
         {
-            name: "currentSetNo",
+            name: "currentsetno",
             description: "The SetNo of the set to edit",
             type: ApplicationCommandOptionType.Integer,
             required: true,
         },
         {
-            name: "newName",
+            name: "newname",
             description: "The new name of the set",
             type: ApplicationCommandOptionType.String,
             required: false,
         },
         {
-            name: "newSetNo",
+            name: "newsetno",
             description: "The new set number",
             type: ApplicationCommandOptionType.Integer,
             required: false,

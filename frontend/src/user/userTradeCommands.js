@@ -44,16 +44,13 @@ async function makeTradeRequestReply(interaction) {
     let cardsReceiverHas = new Map();
 
     try{
-        const userCardsResponse = await axios.get(`${backendUrl}/user/${userId}/cards`);
-        const receiverCardsResponse = await axios.get(`${backendUrl}/user/${receiverId}/cards`);
+        const userCardsResponse = await axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: userId } });
+        const receiverCardsResponse = await axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: receiverId } });
 
         const bodyUser = userCardsResponse.data;
         const bodyReceiver = receiverCardsResponse.data;
-
-        if (!bodyUser.success || !bodyReceiver.success) {
-            throw new Error("Failed to fetch user cards");
-        }
-
+        console.log("User cards response: ", bodyUser);
+        console.log("Receiver cards response: ", bodyReceiver);
 
         bodyUser.cards.forEach(card => {
             cardsSenderHas.set(card._id, { id: card._id, name: card.Name, count: card.quantity });
@@ -67,6 +64,8 @@ async function makeTradeRequestReply(interaction) {
         return;
     }
     
+    console.log("Cards sender has: ", cardsSenderHas);
+    console.log("Cards receiver has: ", cardsReceiverHas);
 
     // i suggest you look at steam trading rhys, this will make more sense, just understand that bc of discord handling of dropdowns
     //basically requires 
@@ -84,6 +83,10 @@ async function makeTradeRequestReply(interaction) {
 
     let cardsReceiverHasArray = Array.from(cardsReceiverHas.values());
     let cardsSenderHasArray = Array.from(cardsSenderHas.values());
+
+    console.log("Cards receiver has array: ", cardsReceiverHasArray);
+    console.log("Cards sender has array: ", cardsSenderHasArray);
+    //current page of cards for both users, bc they might have more than 25 cards
 
     // the cards they have in their fine collection, from db
 
@@ -109,7 +112,7 @@ async function makeTradeRequestReply(interaction) {
         for (let i = currentCardPageForSenderCards * 25; i < Math.min(cardsSenderHasArray.length, (currentCardPageForSenderCards + 1) * 25); i++) {
             const card = cardsSenderHasArray[i];
             optionArray.push({
-                label: `Card Name: ${card.Name} (Count: ${card.Count})`,
+                label: `Card Name: ${card.name} (Count: ${card.count})`,
                 value: card.id.toString(),
             });
 
@@ -184,7 +187,7 @@ async function makeTradeRequestReply(interaction) {
         for (let i = currentCardPageForReceiverCards * 25; i < Math.min(cardsReceiverHasArray.length, (currentCardPageForReceiverCards + 1) * 25); i++) {
             const card = cardsReceiverHasArray[i];
             optionArray.push({
-                label: `Card Name: ${card.name} (Count: ${card.count})`,
+                label: `Card Name: ${card.name} (Count: ${card.Count})`,
                 value: card.id.toString(),
             });
 
@@ -325,6 +328,12 @@ async function makeTradeRequestReply(interaction) {
             selectCollector.stop();
         } else if (buttonInteraction.customId === "confirmTrade") {
             // Handle trade confirmation logic here
+            await axios.post(`${backendUrl}/trade/create`, {
+                offeringUserDiscordID: userId,
+                receivingUserDiscordID: receiverId,
+                offeredCards: Array.from(cardsSelectedSender.values()).map(c => ({ card: c.id, quantity: c.count })),
+                requestedCards: Array.from(cardsSelectedForTradeReciever.values()).map(c => ({ card: c.id, quantity: c.count })),
+            });
             await buttonInteraction.update({ components: [new TextDisplayBuilder().setContent("Trade confirmed!")] });
             buttonCollector.stop();
             selectCollector.stop();
@@ -336,7 +345,6 @@ async function makeTradeRequestReply(interaction) {
             const selectedCards = selectInteraction.values;
             if (addCardModeSender) {
                 selectedCards.forEach(cardId => {
-                    cardId = parseInt(cardId);
                     let foundCard = cardsSenderHas.get(cardId);
                     if (foundCard.count>0 && (cardsSenderHas.get(cardId).count > cardsSelectedSender.get(cardId)?.count || !cardsSelectedSender.has(cardId))) {}
                         cardsSelectedSender.set(cardId, {
@@ -344,14 +352,18 @@ async function makeTradeRequestReply(interaction) {
                             name: foundCard.name,
                             count: (cardsSelectedSender.get(cardId)?.count || 0) + 1
                         });
-                       
+                        //remove one card from their available cards
+                        cardsSenderHas.set(cardId, {
+                            id: foundCard.id,
+                            name: foundCard.name,
+                            count: foundCard.count - 1
+                        });
                     }
                 );
             }
             else if (removeCardModeSender) {
                 selectedCards.forEach(cardId => 
                     {
-                    cardId = parseInt(cardId);
                     if (cardsSelectedSender.has(cardId)) {
                         let currentCount = cardsSelectedSender.get(cardId).count;
                         if (currentCount > 1) {
@@ -360,9 +372,23 @@ async function makeTradeRequestReply(interaction) {
                                 name: cardsSelectedSender.get(cardId).name,
                                 count: currentCount - 1
                             });
+                            //add one card back to their available cards
+                            let foundCard = cardsSenderHas.get(cardId);
+                            cardsSenderHas.set(cardId, {
+                                id: foundCard.id,
+                                name: foundCard.name,
+                                count: foundCard.count + 1
+                            });
                         }
                         else {
                             cardsSelectedSender.delete(cardId);
+                            //add one card back to their available cards
+                            let foundCard = cardsSenderHas.get(cardId);
+                            cardsSenderHas.set(cardId, {
+                                id: foundCard.id,
+                                name: foundCard.name,
+                                count: foundCard.count + 1
+                            });
                         }
                     }
                 });
@@ -383,6 +409,12 @@ async function makeTradeRequestReply(interaction) {
                             name: foundCard.name,
                             count: (cardsSelectedForTradeReciever.get(cardId)?.count || 0) + 1
                         });
+                        //remove one card from their available cards
+                        cardsReceiverHas.set(cardId, {
+                            id: foundCard.id,
+                            name: foundCard.name,
+                            count: foundCard.count - 1
+                        });
                     }
                 });
             } else if (removeCardModeReceiver) {
@@ -395,6 +427,13 @@ async function makeTradeRequestReply(interaction) {
                                 id: cardsSelectedForTradeReciever.get(cardId).id,
                                 name: cardsSelectedForTradeReciever.get(cardId).name,
                                 count: currentCount - 1
+                            });
+                            //add one card back to their available cards
+                            let foundCard = cardsReceiverHas.get(cardId);
+                            cardsReceiverHas.set(cardId, {
+                                id: foundCard.id,
+                                name: foundCard.name,
+                                count: foundCard.count + 1
                             });
                         } else {
                             cardsSelectedForTradeReciever.delete(cardId);
@@ -429,7 +468,7 @@ async function viewTradeRequests (interaction) {
             return;
         }
         const message = response.data.map(trade => {
-            return `Trade ID: ${trade._id}, From: ${trade.offeringUser}, To: ${trade.receivingUser}\nOffered Cards: ${trade.CardsOffered.map(card => card.Name).join(", ")}\nRequested Cards: ${trade.CardsRequested.map(card => card.Name).join(", ")}`;
+            return `Trade ID: ${trade._id}, From: ${trade.offeringUser}, To: ${trade.receivingUser}\nOffered Cards: ${trade.CardsOffered.map(card => card.name).join(", ")}\nRequested Cards: ${trade.CardsRequested.map(card => card.name).join(", ")}`;
         });
 
         const textOutput = new TextDisplayBuilder().setContent(message.join("\n\n"));
