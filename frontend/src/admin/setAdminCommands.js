@@ -92,7 +92,7 @@ async function deleteSet(interaction) {
     //send it to the backend to delete the set
     try {
         const returnData = await axios.delete(`${process.env.backendURL}/api/set/`, {
-            data: { ID: setId, callerID : DiscordID }
+            data: { SetNo: setId, callerID : DiscordID }
         });
 
         if (returnData.status === 200) {
@@ -136,9 +136,9 @@ const editSetSlash = {
     permissionsRequired:[8]
 }
 async function editSet(interaction) {
-    const currentSetNo = interaction.options.getInteger("currentSetNo");
-    const newName = interaction.options.getString("newName");
-    const newSetNo = interaction.options.getInteger("newSetNo");
+    const currentSetNo = interaction.options.getInteger("currentsetno");
+    const newName = interaction.options.getString("newname");
+    const newSetNo = interaction.options.getInteger("newsetno");
     const DiscordID = interaction.user.id;
 
     if (!currentSetNo) {

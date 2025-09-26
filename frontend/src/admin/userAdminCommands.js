@@ -96,7 +96,7 @@ async function viewUserInventory(interaction) {
                 return interaction.reply({ content: inventoryMessage, ephemeral: true });
             }
             inventory.forEach(item => {
-                inventoryMessage += `- ${item.Name} Rarity: ${item.Rarity} Set: ${item.Set} Num: ${item.Num} | Quantity: ${item.Quantity} (ID: ${item.ID})\n`;
+                inventoryMessage += `- ${item.Name} | Rarity: ${item.Rarity} | Num: ${item.Num} | (ID: ${item.SearchID})\n`;
             });
             return interaction.reply({ content: inventoryMessage, ephemeral: true });
         } else {
@@ -135,14 +135,15 @@ const giveUserCardSlash = {
 async function giveUserCard(interaction) {
     const userId = interaction.options.getUser("user").id;
     const cardId = interaction.options.getString("cardid");
+    const callerID = interaction.user.id;
 
-    if (!userId || !cardId || !amount) {
+    if (!userId || !cardId ) {
         return interaction.reply({ content: "Please provide the user ID, card ID, and amount.", ephemeral: true });
     }
 
     //send it to the backend to give the card to the user
     try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/user/giveCard`, { DiscordID: userId, cardID: cardId, callerID : DiscordID  });
+        const returnData = await axios.post(`${process.env.backendURL}/api/user/addCard`, { DiscordID: userId, cardID: cardId, callerID : callerID  });
 
         if (returnData.status === 200) {
             return interaction.reply({ content: "Card given to user successfully!", ephemeral: true });
@@ -181,14 +182,14 @@ const removeUserCardSlash = {
 async function removeUserCard(interaction) {
     const userId = interaction.options.getUser("user").id;
     const cardId = interaction.options.getString("cardid");
-
+    const callerID = interaction.user.id;
     if (!userId || !cardId) {
         return interaction.reply({ content: "Please provide the user ID and card ID.", ephemeral: true });
     }
 
     //send it to the backend to remove the card from the user
     try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/user/removeCard`, { DiscordID: userId, cardID: cardId, callerID : DiscordID  });
+        const returnData = await axios.post(`${process.env.backendURL}/api/user/removeCard`, { DiscordID: userId, cardID: cardId, callerID : callerID  });
 
         if (returnData.status === 200) {
             return interaction.reply({ content: "Card removed from user successfully!", ephemeral: true });

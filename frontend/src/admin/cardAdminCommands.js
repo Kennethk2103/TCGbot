@@ -450,7 +450,7 @@ async function addOrMoveCardToSet(interaction) {
 
     //send it to the backend to add or move the card to the set
     try {
-        const returnData = await axios.post(`${process.env.backendURL}/api/set/move`, { SetID: setId, CardID: cardId, callerID : interaction.user.id });
+        const returnData = await axios.post(`${process.env.backendURL}/api/card/move`, { setRef: setId, cardID: cardId, callerID : interaction.user.id });
 
         if (returnData.status === 200) {
             return interaction.reply({ content: "Card added or moved to set successfully!", ephemeral: true });

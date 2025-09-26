@@ -89,7 +89,7 @@ export const deleteSet = async (req, res) => {
 
             if (!set) throw new DBError("Set Not Found", 404);
 
-            await cardModel.deleteMany({ Set: set._id }).session(session);
+            await cardModel.dele/eMany({ Set: set._id }).session(session);
             await setModel.deleteOne({ _id: set._id }).session(session);
         });
 
@@ -191,9 +191,7 @@ export const editSet = async (req, res) => {
         await session.withTransaction(async () => {
             const body = req.body;
 
-            if (!body.ID) throw new DBError("No Set ID given!", 404);
-
-            const set = await setModel.findById(body.ID).session(session);
+            let set = await setModel.findById(body.ID).session(session);
             if (!set){
                 set = await setModel.findOne({ SetNo: body.prevSetNo }).session(session);
                 if(!set) throw new DBError("Set Not Found", 404);

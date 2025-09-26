@@ -115,13 +115,18 @@ expects the cardID and userID
 */
 async function internalGiveCardToUser(cardID, userID, session) {
     try {
-        const card = await cardModel.findById(cardID).session(session);
+        let card;
+        if(mongoose.Types.ObjectId.isValid(cardID)){
+             card = await cardModel.findById(cardID).session(session);
+        }
         if (!card) {
             card = await cardModel.findOne({ SearchID: cardID }).session(session);
         }
         const user = await userModel.findById(userID).session(session);
         if (!card) throw new DBError("Card Not Found", 404);
         if (!user) throw new DBError("User Not Found", 404);
+
+        cardID = card._id;
 
         const updateResult = await userModel.updateOne(
             { _id: userID, "Cards.card": cardID },
@@ -139,6 +144,7 @@ async function internalGiveCardToUser(cardID, userID, session) {
         }
 
     } catch (error) {
+        console.error("Error giving card to user:", error);
         throw error;
     }
 }
@@ -146,15 +152,21 @@ async function internalGiveCardToUser(cardID, userID, session) {
 
 async function internalTakeCardFromUser(cardID, userID, session){
     try{
+        let card;
+        if(mongoose.Types.ObjectId.isValid(cardID)){
+             card = await cardModel.findById(cardID).session(session);
+        }
+        if (!card) {
+            card = await cardModel.findOne({ SearchID: cardID }).session(session);
+        }
         const user = await userModel.findById(userID).session(session);
-        const card = await cardModel.findById(cardID).session(session);
         if(!card){
             card = await cardModel.findOne({ SearchID: cardID }).session(session);
         }
         if (!card) throw new DBError("Card Not Found", 404);
         if (!user) throw new DBError("User Not Found", 404);
 
-        const cardIndex = user.Cards.findIndex(c => c.toString() === cardID.toString());
+        const cardIndex = user.Cards.findIndex(c => c.card.toString() === card._id.toString());
 
         if (cardIndex === -1) {
             throw new DBError("User does not have this card", 400);
@@ -166,7 +178,8 @@ async function internalTakeCardFromUser(cardID, userID, session){
             user.Cards.splice(cardIndex, 1);
         }
         await user.save({ session });
-    }catch{
+    }catch(error){
+        console.error("Error removing card from user:", error);
         throw error; 
     }
 }
@@ -190,6 +203,7 @@ export const giveUserCard = async (req, res) => {
             if(!user && body.UserID){
                 user = await userModel.findById(body.UserID).session(session);
             }
+
             
             await internalGiveCardToUser(body.cardID, user._id, session)
         })

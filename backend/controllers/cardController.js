@@ -475,8 +475,11 @@ async function internalAddToSet(cardID, setRef, newNum, session) {
     let set;
     if (mongoose.Types.ObjectId.isValid(setRef)) {
         set = await setModel.findById(setRef).session(session);
-    } else if (typeof setRef === 'number') {
-        set = await setModel.findOne({ SetNo: setRef }).session(session);
+    } 
+    if(!set ){
+        if (!isNaN(setRef)) {
+            set = await setModel.findOne({ SetNo: Number(setRef) }).session(session);
+        }
     }
 
     if (!set) throw new DBError("Set Not Found", 404);
@@ -524,11 +527,13 @@ export const addOrMoveTOSet = async (req, res) => {
             let set;
             if (mongoose.Types.ObjectId.isValid(setRef)) {
                 set = await setModel.findById(setRef).session(session);
-            } else if (!isNaN(setRef)) {
-                set = await setModel.findOne({ SetNo: Number(setRef) }).session(session);
+            } 
+            if (!set) {
+                set = await setModel.findOne({ SetNo: new Number(setRef) }).session(session);
             }
 
             if (!set) throw new DBError("Set Not Found", 404);
+            console.log("Set found: ", set);
 
             await internalRemoveFromSet(cardID, session);
             await internalAddToSet(cardID, set._id, NewNum, session);
