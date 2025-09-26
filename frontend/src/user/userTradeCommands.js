@@ -94,23 +94,23 @@ async function makeTradeRequestReply(interaction) {
 
     let currentCardPageForReceiverCards = 0;
 
+    const makeTradeWindow = (pronoun, cardsHas, cardsSelected, addCardMode, removeCardMode, currentCardPage, isSender) => {
 
-    const makeTradeWindowForCurrentUser = () => {
-
-        const currentCardsForCurrentUser = new TextDisplayBuilder().setContent("Your currently selected cards : " +  (cardsSelectedSender.size > 0 ? Array.from(cardsSelectedSender.values()).map(card => `${card.name} (Count: ${card.count})`).join(", ") : "None")).setId(101);
+        const currentCardsForCurrentUser = new TextDisplayBuilder().setContent(`${pronoun} currently selected cards : ` +  (cardsSelected.size > 0 ? Array.from(cardsSelected.values()).map(card => `${card.name} (Count: ${card.count})`).join(", ") : "None")).setId(isSender ? 101 : 201);
 
         //const currentTextForCurrentUserRow = new ActionRowBuilder().addComponents(currentCardsForCurrentUser);
+        const cardHasArray = Array.from(cardsHas.values());
 
         const currentCardsForCurrentUserSelect = new StringSelectMenuBuilder()
-            .setCustomId("currentCardsForCurrentUserSelect")
+            .setCustomId(isSender ? "currentCardsForCurrentUserSelect" : "otherUserCardsSelect")
             .setPlaceholder("Select a card to trade")
             .setMinValues(0)
-            .setMaxValues(Math.min(cardsSenderHas.size - (currentCardPageForSenderCards * 25), 25));
-
-
+            .setMaxValues(Math.min(cardHasArray.length - (currentCardPage * 25), 25));
         const optionArray = []
-        for (let i = currentCardPageForSenderCards * 25; i < Math.min(cardsSenderHasArray.length, (currentCardPageForSenderCards + 1) * 25); i++) {
-            const card = cardsSenderHasArray[i];
+
+
+        for (let i = currentCardPage * 25; i < Math.min(cardHasArray.length, (currentCardPage + 1) * 25); i++) {
+            const card = cardHasArray[i];
             optionArray.push({
                 label: `Card Name: ${card.name} (Count: ${card.count})`,
                 value: card.id.toString(),
@@ -124,30 +124,28 @@ async function makeTradeRequestReply(interaction) {
 
         const addRemoveContainer = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId("addCardToTradeSender")
+                .setCustomId(isSender ? "addCardToTradeSender" : "addCardToTradeReceiver")
                 .setLabel("Add Card")
-                .setStyle((addCardModeSender) ? "Primary" : "Secondary"),
+                .setStyle((addCardMode) ? "Primary" : "Secondary"),
             new ButtonBuilder()
-                .setCustomId("removeCardFromTradeSender")
+                .setCustomId(isSender ? "removeCardFromTradeSender" : "removeCardFromTradeReceiver")
                 .setLabel("Remove Card")
-                .setStyle((removeCardModeSender) ? "Danger" : "Secondary"),
-        );
-
+                .setStyle((removeCardMode) ? "Danger" : "Secondary"),
+        );  
         const nextPageButton = new ButtonBuilder()
-            .setCustomId("nextPageSenderCards")
+            .setCustomId(isSender ? "nextPageSenderCards" : "nextPageReceiverCards")
             .setLabel("Next Page")
             .setStyle("Secondary");
-
+            
         const previousPageButton = new ButtonBuilder()
-            .setCustomId("previousPageSenderCards")
+            .setCustomId(isSender ? "previousPageSenderCards" : "previousPageReceiverCards")
             .setLabel("Previous Page")
             .setStyle("Secondary");
-
         const pageComponents = []
-        if (currentCardPageForSenderCards > 0) {
+        if (currentCardPage > 0) {
             pageComponents.push(previousPageButton);
         }
-        if ((currentCardPageForSenderCards + 1) * 25 < cardsSenderHas.size) {
+        if ((currentCardPage + 1) * 25 < cardsHas.length) {
             pageComponents.push(nextPageButton);
         }
 
@@ -171,84 +169,10 @@ async function makeTradeRequestReply(interaction) {
         return returnComponents;
     }
 
-    const makeTradeWindowForOtherUser = () => {
-
-        const otherUserCardsText = new TextDisplayBuilder().setContent("Their currently selected cards : " +  (cardsSelectedForTradeReciever.size > 0 ? Array.from(cardsSelectedForTradeReciever.values()).map(card => `${card.name} (Count: ${card.count})`).join(", ") : "None")).setId(201);
-
-        //const otherUserCardsTextRow = new ActionRowBuilder().addComponents(otherUserCardsText);
-
-        const otherUserCardsSelect = new StringSelectMenuBuilder()
-            .setCustomId("otherUserCardsSelect")
-            .setPlaceholder("Select a card to trade")
-            .setMinValues(0)
-            .setMaxValues(Math.min(cardsReceiverHasArray.length - (currentCardPageForReceiverCards * 25), 25));
-
-        const optionArray = []
-        for (let i = currentCardPageForReceiverCards * 25; i < Math.min(cardsReceiverHasArray.length, (currentCardPageForReceiverCards + 1) * 25); i++) {
-            const card = cardsReceiverHasArray[i];
-            optionArray.push({
-                label: `Card Name: ${card.name} (Count: ${card.Count})`,
-                value: card.id.toString(),
-            });
-
-        }
-
-        otherUserCardsSelect.addOptions(optionArray);
-
-        let otherUserCardsSelectActionRow = new ActionRowBuilder().addComponents(otherUserCardsSelect);
-
-
-        const addRemoveContainer = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("addCardToTradeReceiver")
-                .setLabel("Add Card")
-                .setStyle((addCardModeReceiver) ? "Primary" : "Secondary"),
-            new ButtonBuilder()
-                .setCustomId("removeCardFromTradeReceiver")
-                .setLabel("Remove Card")
-                .setStyle((removeCardModeReceiver) ? "Danger" : "Secondary"),
-        );
-
-        const nextPageButton = new ButtonBuilder()
-            .setCustomId("nextPageReceiverCards")
-            .setLabel("Next Page")
-            .setStyle("Secondary");
-
-        const previousPageButton = new ButtonBuilder()
-            .setCustomId("previousPageReceiverCards")
-            .setLabel("Previous Page")
-            .setStyle("Secondary");
-
-        const pageComponents = []
-        if (currentCardPageForReceiverCards > 0) {
-            pageComponents.push(previousPageButton);
-        }
-        if ((currentCardPageForReceiverCards + 1) * 25 < cardsReceiverHas.size) {
-            pageComponents.push(nextPageButton);
-        }
-
-        let components = [];
-        if (pageComponents.length > 0) {
-            components = [
-                otherUserCardsText,
-                otherUserCardsSelectActionRow,
-                addRemoveContainer,
-                new ActionRowBuilder().addComponents(pageComponents)
-            ];
-        } else {
-            components = [
-                otherUserCardsText,
-                otherUserCardsSelectActionRow,
-                addRemoveContainer
-            ];
-        }
-        return components;
-    }
-
     const getReplyObj = () => {
 
-        const currentUserComponents = makeTradeWindowForCurrentUser();
-        const otherUserComponents = makeTradeWindowForOtherUser();
+        const currentUserComponents = makeTradeWindow("Your", cardsSenderHas, cardsSelectedSender, addCardModeSender, removeCardModeSender, currentCardPageForSenderCards, true);
+        const otherUserComponents = makeTradeWindow("Their", cardsReceiverHas, cardsSelectedForTradeReciever, addCardModeReceiver, removeCardModeReceiver, currentCardPageForReceiverCards, false);
 
         const cancelButton = new ButtonBuilder()
             .setCustomId("cancelTrade")
@@ -293,7 +217,7 @@ async function makeTradeRequestReply(interaction) {
             removeCardModeSender = !removeCardModeSender;
             removeCardModeReceiver = false
             addCardModeReceiver = false;
-            addCardModeReceiver = false;
+            addCardModeSender = false;
 
             await buttonInteraction.update(getReplyObj());
         } else if (buttonInteraction.customId === "nextPageSenderCards") {
@@ -328,7 +252,7 @@ async function makeTradeRequestReply(interaction) {
             selectCollector.stop();
         } else if (buttonInteraction.customId === "confirmTrade") {
             // Handle trade confirmation logic here
-            await axios.post(`${backendUrl}/trade/create`, {
+            await axios.post(`${backendUrl}/trade/`, {
                 offeringUserDiscordID: userId,
                 receivingUserDiscordID: receiverId,
                 offeredCards: Array.from(cardsSelectedSender.values()).map(c => ({ card: c.id, quantity: c.count })),
@@ -340,111 +264,61 @@ async function makeTradeRequestReply(interaction) {
         }
     });
 
-    selectCollector.on('collect', async (selectInteraction) => {
-        if (selectInteraction.customId === "currentCardsForCurrentUserSelect") {
-            const selectedCards = selectInteraction.values;
-            if (addCardModeSender) {
-                selectedCards.forEach(cardId => {
-                    let foundCard = cardsSenderHas.get(cardId);
-                    if (foundCard.count>0 && (cardsSenderHas.get(cardId).count > cardsSelectedSender.get(cardId)?.count || !cardsSelectedSender.has(cardId))) {}
-                        cardsSelectedSender.set(cardId, {
-                            id: foundCard.id,
-                            name: foundCard.name,
-                            count: (cardsSelectedSender.get(cardId)?.count || 0) + 1
-                        });
-                        //remove one card from their available cards
-                        cardsSenderHas.set(cardId, {
-                            id: foundCard.id,
-                            name: foundCard.name,
-                            count: foundCard.count - 1
-                        });
-                    }
-                );
-            }
-            else if (removeCardModeSender) {
-                selectedCards.forEach(cardId => 
-                    {
-                    if (cardsSelectedSender.has(cardId)) {
-                        let currentCount = cardsSelectedSender.get(cardId).count;
-                        if (currentCount > 1) {
-                            cardsSelectedSender.set(cardId, {
-                                id: cardsSelectedSender.get(cardId).id,
-                                name: cardsSelectedSender.get(cardId).name,
-                                count: currentCount - 1
-                            });
-                            //add one card back to their available cards
-                            let foundCard = cardsSenderHas.get(cardId);
-                            cardsSenderHas.set(cardId, {
-                                id: foundCard.id,
-                                name: foundCard.name,
-                                count: foundCard.count + 1
-                            });
-                        }
-                        else {
-                            cardsSelectedSender.delete(cardId);
-                            //add one card back to their available cards
-                            let foundCard = cardsSenderHas.get(cardId);
-                            cardsSenderHas.set(cardId, {
-                                id: foundCard.id,
-                                name: foundCard.name,
-                                count: foundCard.count + 1
-                            });
-                        }
-                    }
-                });
-            }
-        
+    selectCollector.on("collect", async (selectInteraction) => {
+        const selectedCards = selectInteraction.values;
+
+        if(selectInteraction.customId !== "currentCardsForCurrentUserSelect" && selectInteraction.customId !== "otherUserCardsSelect"){
             await selectInteraction.update(getReplyObj());
-        } else if (selectInteraction.customId === "otherUserCardsSelect") {
-            const selectedCards = selectInteraction.values;
-            console.log("Selected cards for receiver: ", selectedCards);
-            if (addCardModeReceiver) {
-                selectedCards.forEach(cardId => {
-                    cardId = parseInt(cardId);
-                    let foundCard = cardsReceiverHas.get(cardId);
-                    console.log("Found card: ", foundCard);
-                    if (foundCard.count>0 && (cardsReceiverHas.get(cardId).count > cardsSelectedForTradeReciever.get(cardId)?.count || !cardsSelectedForTradeReciever.has(cardId))) {
-                        cardsSelectedForTradeReciever.set(cardId, {
-                            id: foundCard.id,
-                            name: foundCard.name,
-                            count: (cardsSelectedForTradeReciever.get(cardId)?.count || 0) + 1
-                        });
-                        //remove one card from their available cards
-                        cardsReceiverHas.set(cardId, {
-                            id: foundCard.id,
-                            name: foundCard.name,
-                            count: foundCard.count - 1
-                        });
-                    }
-                });
-            } else if (removeCardModeReceiver) {
-                selectedCards.forEach(cardId => {
-                    cardId = parseInt(cardId);
-                    if (cardsSelectedForTradeReciever.has(cardId)) {
-                        let currentCount = cardsSelectedForTradeReciever.get(cardId).count;
-                        if (currentCount > 1) {
-                            cardsSelectedForTradeReciever.set(cardId, {
-                                id: cardsSelectedForTradeReciever.get(cardId).id,
-                                name: cardsSelectedForTradeReciever.get(cardId).name,
-                                count: currentCount - 1
-                            });
-                            //add one card back to their available cards
-                            let foundCard = cardsReceiverHas.get(cardId);
-                            cardsReceiverHas.set(cardId, {
-                                id: foundCard.id,
-                                name: foundCard.name,
-                                count: foundCard.count + 1
-                            });
-                        } else {
-                            cardsSelectedForTradeReciever.delete(cardId);
-                        }
-                    }
-                });
-            }
-           
-            await selectInteraction.update(getReplyObj());
+            return;
         }
-    });
+
+        const forSender = selectInteraction.customId === "currentCardsForCurrentUserSelect";
+
+        let cardsNotSelected = forSender ? cardsSenderHas : cardsReceiverHas;
+        let cardsSelected = forSender ? cardsSelectedSender : cardsSelectedForTradeReciever;
+        let addCardMode = forSender ? addCardModeSender : addCardModeReceiver;
+        let removeCardMode = forSender ? removeCardModeSender : removeCardModeReceiver;
+
+        if(!addCardMode && !removeCardMode){
+            await selectInteraction.update(getReplyObj());
+            return;
+        }
+
+        let searchSet = (addCardMode) ? cardsNotSelected : cardsSelected;
+        let depositSet = (addCardMode) ? cardsSelected : cardsNotSelected;
+
+        selectedCards.forEach(cardId => {
+
+            let foundCard = searchSet.get(cardId);
+            let foundCardInDeposit = depositSet.get(cardId);
+
+            if (foundCard) {
+                searchSet.set(cardId, {
+                    id: foundCard.id,
+                    name: foundCard.name,
+                    count: foundCard.count -1,
+                });
+
+                if(searchSet.get(cardId).count <= 0){
+                    searchSet.delete(cardId);
+                }
+
+                if(!foundCardInDeposit){
+                    foundCardInDeposit = { id: foundCard.id, name: foundCard.name, count: 0 };
+                }
+
+                depositSet.set(cardId, {
+                        id: foundCardInDeposit.id,
+                        name: foundCardInDeposit.name,
+                        count: foundCardInDeposit.count + 1,
+                });
+               
+            }
+
+        });
+
+        await selectInteraction.update(getReplyObj());
+    })
 
 }
 commandMap.set(makeTradeRequestReplySlash.name, makeTradeRequestReply);

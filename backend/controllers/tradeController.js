@@ -16,9 +16,9 @@ export const addTrade = async (req, res) => {
 
             if (!body.offeringUserDiscordID) throw new DBError("No offering user's DiscordID provided", 404);
             if (!body.receivingUserDiscordID) throw new DBError("No receiving user's DiscordID provided", 404);
-            if (!body.offeredCards || !Array.isArray(body.offeredCards) || body.offeredCards.length === 0)
+            if (!body.offeredCards || !Array.isArray(body.offeredCards) )
                 throw new DBError("No offered cards provided", 404);
-            if (!body.requestedCards || !Array.isArray(body.requestedCards) || body.requestedCards.length === 0)
+            if (!body.requestedCards || !Array.isArray(body.requestedCards) )
                 throw new DBError("No requested cards provided", 404);
 
             const offeringUser = await userModel.findOne({ DiscordID: body.offeringUserDiscordID }).session(session);
@@ -30,23 +30,29 @@ export const addTrade = async (req, res) => {
             // Ensure offeredCards/requestedCards are in { card: ObjectId, quantity: Number } format
             function normalizeCards(cards) {
                 return cards.map(c => ({
-                    card: mongoose.Types.ObjectId(c.card),
+                    card: new mongoose.Types.ObjectId(c.card),
                     quantity: typeof c.quantity === 'number' && c.quantity > 0 ? c.quantity : 1
                 }));
             }
 
             const offeredCards = normalizeCards(body.offeredCards);
             const requestedCards = normalizeCards(body.requestedCards);
+            console.log("Offered Cards: ", offeredCards);
+            console.log("Requested Cards: ", requestedCards);
 
             const trade = new tradeModel({
-                offeringUser: offeringUser._id,
-                receivingUser: receivingUser._id,
-                offeredCards,
-                requestedCards,
-                status: 'pending'
+                Sender: offeringUser._id,
+                Reciever: receivingUser._id,
+                CardsOffered: offeredCards,
+                CardsRequested: requestedCards,
+                Completed: false,
+                Rejected: false
             });
 
+            console.log("New Trade: ", trade);
+
             const savedTrade = await trade.save({ session });
+            console.log("New Trade: ", trade);
 
             if (!savedTrade) throw new DBError("Failed to create new trade", 500);
 
@@ -57,7 +63,7 @@ export const addTrade = async (req, res) => {
         return res.status(200).json({ tradeID: savedTrade._id, message: "Trade successfully created" });
     } catch (error) {
         session.endSession();
-
+        console.log(error);
         let code = 500;
         let message = error.message;
 
