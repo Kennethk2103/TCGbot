@@ -1,4 +1,4 @@
-Name,Subtitle,Rarity,Num,SetRef,Artist,ArtworkFile
-Murkrow,The Crow Pokemon,Common,29,1,Pokemon,Murkrow.png
-Wooper,The Axolotl Pokemon,Rare,30,1,Pokemon,Wooper.png
-Roaring Moon,Paradox Pokemon,Ultra Rare,31,1,Pokemon,RoaringMoon.png
+Name,Subtitle,Rarity,Num,SetRef,Artist,ArtworkFile,BacksideFile,Bio,Power,Speed,Special
+Murkrow,The Crow Pokemon,Common,29,1,Pokemon,Murkrow.png,backside.png,This is a Murkrow,1,3,2
+Wooper,The Axolotl Pokemon,Rare,30,1,Pokemon,Wooper.png,backside.png, This is a Wooper,2,1,2
+Roaring Moon,Paradox Pokemon,Ultra Rare,31,1,Pokemon,RoaringMoon.png,backside.png, This is a Roaring Moon,5,5,3

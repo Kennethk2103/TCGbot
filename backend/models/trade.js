@@ -15,6 +15,6 @@ const tradeSchema = new Schema({
     Rejected: { type: Boolean, default: false },
 })
 
-const tradeModel = mongoose.models.Set || mongoose.model('Trade', tradeSchema)
+const tradeModel = mongoose.models.Trade || mongoose.model('Trade', tradeSchema)
 
 export default tradeModel
