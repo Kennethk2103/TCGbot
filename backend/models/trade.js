@@ -1,20 +1,20 @@
-import mongoose, {Document, Schema} from 'mongoose'; 
+import mongoose, { Schema } from 'mongoose';
 
 const tradeSchema = new Schema({
-    Sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    Reciever: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    CardsOffered: [{
-        card: { type: mongoose.Schema.Types.ObjectId, ref: 'Card', required: true },
+    offeringUser: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    receivingUser: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    offeredCards: [{
+        card: { type: Schema.Types.ObjectId, ref: 'Card', required: true },
         quantity: { type: Number, required: true, min: 1 }
     }],
-    CardsRequested: [{
-        card: { type: mongoose.Schema.Types.ObjectId, ref: 'Card', required: true },
+    requestedCards: [{
+        card: { type: Schema.Types.ObjectId, ref: 'Card', required: true },
         quantity: { type: Number, required: true, min: 1 }
     }],
-    Completed: { type: Boolean, default: false },
-    Rejected: { type: Boolean, default: false },
-})
+    completed: { type: Boolean, default: false },
+    rejected: { type: Boolean, default: false },
+}, { timestamps: true }); 
 
-const tradeModel = mongoose.models.Trade || mongoose.model('Trade', tradeSchema)
+const tradeModel = mongoose.models.Trade || mongoose.model('Trade', tradeSchema);
 
-export default tradeModel
+export default tradeModel;
