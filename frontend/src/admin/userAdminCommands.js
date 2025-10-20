@@ -96,7 +96,7 @@ async function viewUserInventory(interaction) {
                 return interaction.reply({ content: inventoryMessage, ephemeral: true });
             }
             inventory.forEach(item => {
-                inventoryMessage += `- ${item.Name} | Rarity: ${item.Rarity} | Num: ${item.Num} | (ID: ${item.SearchID})\n`;
+                inventoryMessage += `- ${item.Name} | Rarity: ${item.Rarity} | Num: ${item.Num} | Quantity: ${item.quantity} (ID: ${item.SearchID})\n`;
             });
             return interaction.reply({ content: inventoryMessage, ephemeral: true });
         } else {

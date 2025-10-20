@@ -31,7 +31,7 @@ async function makeTradeRequestReply(interaction) {
     //i do not expect this to work first try
 
     class Cards {
-        
+
     }
 
     const components = [];
@@ -43,7 +43,7 @@ async function makeTradeRequestReply(interaction) {
     let cardsSenderHas = new Map();
     let cardsReceiverHas = new Map();
 
-    try{
+    try {
         const userCardsResponse = await axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: userId } });
         const receiverCardsResponse = await axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: receiverId } });
 
@@ -58,12 +58,12 @@ async function makeTradeRequestReply(interaction) {
         bodyReceiver.cards.forEach(card => {
             cardsReceiverHas.set(card._id, { id: card._id, name: card.Name, count: card.quantity });
         });
-    }catch(error){
+    } catch (error) {
         console.error("Error fetching user cards: ", error);
         await interaction.reply("Error fetching user cards. Please try again later.");
         return;
     }
-    
+
     console.log("Cards sender has: ", cardsSenderHas);
     console.log("Cards receiver has: ", cardsReceiverHas);
 
@@ -96,7 +96,7 @@ async function makeTradeRequestReply(interaction) {
 
     const makeTradeWindow = (pronoun, cardsHas, cardsSelected, addCardMode, removeCardMode, currentCardPage, isSender) => {
 
-        const currentCardsForCurrentUser = new TextDisplayBuilder().setContent(`${pronoun} currently selected cards : ` +  (cardsSelected.size > 0 ? Array.from(cardsSelected.values()).map(card => `${card.name} (Count: ${card.count})`).join(", ") : "None")).setId(isSender ? 101 : 201);
+        const currentCardsForCurrentUser = new TextDisplayBuilder().setContent(`${pronoun} currently selected cards : ` + (cardsSelected.size > 0 ? Array.from(cardsSelected.values()).map(card => `${card.name} (Count: ${card.count})`).join(", ") : "None")).setId(isSender ? 101 : 201);
 
         //const currentTextForCurrentUserRow = new ActionRowBuilder().addComponents(currentCardsForCurrentUser);
         const cardHasArray = Array.from(cardsHas.values());
@@ -131,12 +131,12 @@ async function makeTradeRequestReply(interaction) {
                 .setCustomId(isSender ? "removeCardFromTradeSender" : "removeCardFromTradeReceiver")
                 .setLabel("Remove Card")
                 .setStyle((removeCardMode) ? "Danger" : "Secondary"),
-        );  
+        );
         const nextPageButton = new ButtonBuilder()
             .setCustomId(isSender ? "nextPageSenderCards" : "nextPageReceiverCards")
             .setLabel("Next Page")
             .setStyle("Secondary");
-            
+
         const previousPageButton = new ButtonBuilder()
             .setCustomId(isSender ? "previousPageSenderCards" : "previousPageReceiverCards")
             .setLabel("Previous Page")
@@ -149,7 +149,7 @@ async function makeTradeRequestReply(interaction) {
             pageComponents.push(nextPageButton);
         }
 
-       let returnComponents = [];
+        let returnComponents = [];
         if (pageComponents.length > 0) {
             returnComponents = [
                 currentCardsForCurrentUser,
@@ -164,7 +164,7 @@ async function makeTradeRequestReply(interaction) {
                 addRemoveContainer
             ];
         }
-        
+
 
         return returnComponents;
     }
@@ -186,7 +186,7 @@ async function makeTradeRequestReply(interaction) {
 
         const actionRow = new ActionRowBuilder().addComponents(cancelButton, confirmButton);
 
-        return  {
+        return {
             components: currentUserComponents.concat(otherUserComponents).concat([actionRow]),
             flags: 1 << 15 | 64,
         };
@@ -211,7 +211,7 @@ async function makeTradeRequestReply(interaction) {
             removeCardModeSender = false;
             addCardModeReceiver = false;
             removeCardModeReceiver = false;
-            
+
             await buttonInteraction.update(getReplyObj());
         } else if (buttonInteraction.customId === "removeCardFromTradeSender") {
             removeCardModeSender = !removeCardModeSender;
@@ -231,11 +231,11 @@ async function makeTradeRequestReply(interaction) {
             removeCardModeReceiver = false;
             addCardModeSender = false;
             removeCardModeSender = false;
-        
+
             await buttonInteraction.update(getReplyObj());
         } else if (buttonInteraction.customId === "removeCardFromTradeReceiver") {
             removeCardModeReceiver = !removeCardModeReceiver;
-            removeCardModeSender = false;   
+            removeCardModeSender = false;
             addCardModeSender = false;
             addCardModeReceiver = false;
             //cardsSelectedForTradeReciever = cardsSelectedForTradeReciever.filter(c => !selectedCards.includes(c.id.toString()));
@@ -247,7 +247,7 @@ async function makeTradeRequestReply(interaction) {
             currentCardPageForReceiverCards--;
             await buttonInteraction.update(getReplyObj());
         } else if (buttonInteraction.customId === "cancelTrade") {
-            await buttonInteraction.update({components: [new TextDisplayBuilder().setContent("Trade cancelled.")] });
+            await buttonInteraction.update({ components: [new TextDisplayBuilder().setContent("Trade cancelled.")] });
             buttonCollector.stop();
             selectCollector.stop();
         } else if (buttonInteraction.customId === "confirmTrade") {
@@ -267,7 +267,7 @@ async function makeTradeRequestReply(interaction) {
     selectCollector.on("collect", async (selectInteraction) => {
         const selectedCards = selectInteraction.values;
 
-        if(selectInteraction.customId !== "currentCardsForCurrentUserSelect" && selectInteraction.customId !== "otherUserCardsSelect"){
+        if (selectInteraction.customId !== "currentCardsForCurrentUserSelect" && selectInteraction.customId !== "otherUserCardsSelect") {
             await selectInteraction.update(getReplyObj());
             return;
         }
@@ -279,7 +279,7 @@ async function makeTradeRequestReply(interaction) {
         let addCardMode = forSender ? addCardModeSender : addCardModeReceiver;
         let removeCardMode = forSender ? removeCardModeSender : removeCardModeReceiver;
 
-        if(!addCardMode && !removeCardMode){
+        if (!addCardMode && !removeCardMode) {
             await selectInteraction.update(getReplyObj());
             return;
         }
@@ -296,23 +296,23 @@ async function makeTradeRequestReply(interaction) {
                 searchSet.set(cardId, {
                     id: foundCard.id,
                     name: foundCard.name,
-                    count: foundCard.count -1,
+                    count: foundCard.count - 1,
                 });
 
-                if(searchSet.get(cardId).count <= 0){
+                if (searchSet.get(cardId).count <= 0) {
                     searchSet.delete(cardId);
                 }
 
-                if(!foundCardInDeposit){
+                if (!foundCardInDeposit) {
                     foundCardInDeposit = { id: foundCard.id, name: foundCard.name, count: 0 };
                 }
 
                 depositSet.set(cardId, {
-                        id: foundCardInDeposit.id,
-                        name: foundCardInDeposit.name,
-                        count: foundCardInDeposit.count + 1,
+                    id: foundCardInDeposit.id,
+                    name: foundCardInDeposit.name,
+                    count: foundCardInDeposit.count + 1,
                 });
-               
+
             }
 
         });
@@ -329,24 +329,168 @@ const viewTradeRequestsSlash = {
     description: "View your trade requests",
     options: []
 }
-async function viewTradeRequests (interaction) {
+async function viewTradeRequests(interaction) {
     const userId = interaction.user.id;
+    console.log("Fetching trade requests for user:", userId);
 
     try {
-        const response = await axios.get(`${backendUrl}/trade/getAll`, { params: { DiscordID: userId } });
-        console.log("Response from backend:", response.data);
+        let page = 0;
 
-        if (!response.data || !Array.isArray(response.data)) {
-            console.error("Invalid response format:", response.data);
-            await interaction.reply("An error occurred while fetching trade requests. Please try again later.");
-            return;
+
+        let createTradeView = async (curPage) => {
+            const response = await axios.get(`${backendUrl}/trade/getAll`, { params: { callerID: userId, discordID: userId } });
+            console.log("Response from backend:", response.data);
+
+
+            if (!response.data || !Array.isArray(response.data)) {
+                console.error("Invalid response format:", response.data);
+
+                return {
+                    flags: 1 << 15 | 64,
+                    components: [new TextDisplayBuilder().setContent("An error occurred while fetching trade requests.")],
+                    ephemeral: true,
+                }
+            }
+
+            const trades = response.data;
+            if (trades.length === 0) {
+                return {
+                    flags: 1 << 15 | 64,
+                    components: [new TextDisplayBuilder().setContent("You have no trade requests.")],
+                    ephemeral: true,
+                }
+            }
+
+            trades.slice(curPage * 3, (curPage + 1) * 3);
+            const message = trades.map(trade => {
+                const status = trade.completed ? "Completed" : trade.rejected ? "Rejected" : "Pending";
+                const offeredCards = trade.offeredCards.map(card => `${card.card.Name} (x${card.quantity})`).join(", ");
+                const requestedCards = trade.requestedCards.map(card => `${card.card.Name} (x${card.quantity})`).join(", ");
+                //return `Trade ID: ${trade._id}\nFrom: <@${trade.offeringUser.DiscordID}>\nTo: <@${trade.receivingUser.DiscordID}>\nOffered Cards: ${offeredCards}\nRequested Cards: ${requestedCards}\nStatus: ${status}`;
+
+            });
+
+            const items = [];
+            items.push(new TextDisplayBuilder().setContent(`\`\`\`You have ${trades.length} trade requests:\`\`\``));
+
+            for (let i = curPage * 3; i < Math.min((curPage + 1) * 3, trades.length); i++) {
+                const trade = trades[i];
+                const status = trade.completed ? "Completed" : trade.rejected ? "Rejected" : "Pending";
+                const offeredCards = trade.offeredCards.map(card => `${card.card.Name} (x${card.quantity})`).join(", ");
+                const requestedCards = trade.requestedCards.map(card => `${card.card.Name} (x${card.quantity})`).join(", ");
+                const buttonRow = new ActionRowBuilder();
+
+                const acceptButton = new ButtonBuilder()
+                    .setCustomId(`acceptTrade_${trade._id}`)
+                    .setLabel("Accept")
+                    .setStyle("Success");
+
+                const rejectButton = new ButtonBuilder()
+                    .setCustomId(`rejectTrade_${trade._id}`)
+                    .setLabel((trade.offeringUser.DiscordID === userId) ? "Cancel" : "Reject")
+                    .setStyle("Danger");
+
+
+                if (!trade.completed && !trade.rejected && trade.receivingUser.DiscordID === userId) {
+                    buttonRow.addComponents(acceptButton);
+                }
+                if (!trade.completed && !trade.rejected) {
+                    buttonRow.addComponents(rejectButton);
+                }
+
+                const textField = new TextDisplayBuilder()
+                    .setContent(`Trade ID: ${trade._id}\nFrom: <@${trade.offeringUser.DiscordID}>\nTo: <@${trade.receivingUser.DiscordID}>\nOffered Cards: ${offeredCards}\nRequested Cards: ${requestedCards}\nStatus: ${status}`)
+
+
+                let container = new ContainerBuilder().addTextDisplayComponents(textField).addActionRowComponents(buttonRow);
+
+
+                items.push(container);
+            }
+
+
+            const nextPageButton = new ButtonBuilder()
+                .setCustomId('nextPageTrades')
+                .setLabel('Next Page')
+                .setStyle('Secondary');
+
+            const prevPageButton = new ButtonBuilder()
+                .setCustomId('prevPageTrades')
+                .setLabel('Previous Page')
+                .setStyle('Secondary');
+
+            const addPrevButton = page > 0;
+            const addNextButton = (page + 1) * 3 < trades.length;
+
+            const pageButtons = new ActionRowBuilder();
+            if (addPrevButton) pageButtons.addComponents(prevPageButton);
+            if (addNextButton) pageButtons.addComponents(nextPageButton);
+
+            if (addPrevButton || addNextButton) {
+                items.push(pageButtons);
+            }
+
+            return {
+                flags: 1 << 15 | 64,
+                components: items,
+                ephemeral: true,
+            }
         }
-        const message = response.data.map(trade => {
-            return `Trade ID: ${trade._id}, From: ${trade.offeringUser}, To: ${trade.receivingUser}\nOffered Cards: ${trade.CardsOffered.map(card => card.name).join(", ")}\nRequested Cards: ${trade.CardsRequested.map(card => card.name).join(", ")}`;
+
+        let items = await createTradeView(page);
+
+        const reply = await interaction.reply(items);
+
+        const buttonCollector = reply.createMessageComponentCollector({
+            componentType: ComponentType.Button,
+            time: 600000, // 10 minutes
         });
 
-        const textOutput = new TextDisplayBuilder().setContent(message.join("\n\n"));
-        await interaction.reply({ components: [textOutput] , flags: 1 << 15 | 64});
+        buttonCollector.on('collect', async (buttonInteraction) => {
+            const [action, tradeId] = buttonInteraction.customId.split('_');
+            console.log(`Button interaction received: action=${action}, tradeId=${tradeId}`);
+
+            if (action === 'acceptTrade') {
+                try {
+                    await axios.post(`${backendUrl}/trade/accept`, {
+                        tradeID: tradeId,
+                        callerID: userId,
+                        callingUser: userId,
+
+                    });
+                    buttonInteraction.update(await createTradeView(page));
+                } catch (error) {
+                    console.error("Error accepting trade:", error);
+                    await buttonInteraction.update({ flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent("An error occurred while accepting the trade.")], ephemeral: true });
+                }
+            } else if (action === 'rejectTrade') {
+                try {
+                    await axios.post(`${backendUrl}/trade/reject`, {
+                        tradeID: tradeId,
+                        callerID: userId,
+                        callingUser: userId,
+                    });
+                    buttonInteraction.update(await createTradeView(page));
+                } catch (error) {
+                    console.error("Error rejecting trade:", error);
+                    await buttonInteraction.update({ flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent("An error occurred while rejecting the trade.")], ephemeral: true });
+                }
+            }
+            else if (action === 'nextPageTrades') {
+                page++;
+                buttonInteraction.update(await createTradeView(page));
+            }
+            else if (action === 'prevPageTrades') {
+                page--;
+                buttonInteraction.update(await createTradeView(page));
+            }
+
+
+        });
+
+
+
+
     } catch (error) {
         console.error("Error fetching trade requests:", error);
         await interaction.reply("An error occurred while fetching trade requests.");

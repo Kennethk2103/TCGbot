@@ -89,9 +89,10 @@ export const rejectTrade = async (req, res) => {
     const session = await mongoose.startSession();
     try {
         const deletedTrade = await session.withTransaction(async () => {
-            const tradeID = req.params.id;
+            console.log(req)
+            const tradeID = req.body.tradeID;
             const callingUserDiscordID = req.body.callingUser;
-
+        
             if (!tradeID) throw new DBError("No trade ID provided", 404);
             if (!callingUserDiscordID) throw new DBError("No calling user DiscordID provided", 404);
 
@@ -135,18 +136,26 @@ export const acceptTrade = async (req, res) => {
     const session = await mongoose.startSession();
     try {
         const acceptedTrade = await session.withTransaction(async () => {
-            const tradeID = req.params.id;
+            const tradeID = req.body.tradeID;
             const callingUserDiscordID = req.body.callingUser;
 
             if (!tradeID) throw new DBError("No trade ID provided", 404);
             if (!callingUserDiscordID) throw new DBError("No calling user DiscordID provided", 404);
 
             const trade = await tradeModel.findById(tradeID)
-                .populate('offeringUser', 'DiscordID username role cards')
-                .populate('receivingUser', 'DiscordID username role cards')
+                .populate('offeringUser', 'DiscordID Username isAdmin Cards')
+                .populate('receivingUser', 'DiscordID Username isAdmin Cards')
                 .populate('offeredCards.card')
                 .populate('requestedCards.card')
                 .session(session);
+
+            const offeringUserCards = trade.offeringUser.Cards;
+            const receivingUserCards = trade.receivingUser.Cards;
+            for (const card of offeringUserCards) {
+                console.log(card.card)
+            }
+
+
 
             if (!trade) throw new DBError("Trade not found", 404);
 
@@ -155,58 +164,101 @@ export const acceptTrade = async (req, res) => {
 
             const isOfferingUser = trade.offeringUser.DiscordID === callingUserDiscordID;
             const isReceivingUser = trade.receivingUser.DiscordID === callingUserDiscordID;
-            const isAdmin = callingUser.role === 'admin';
+            const isAdmin = callingUser.role;
 
             if (!isOfferingUser && !isReceivingUser && !isAdmin) {
                 throw new DBError("User not authorized to accept this trade", 403);
             }
 
             // Ensure both users own the cards they’re offering
-            function hasCards(userCards, offeredCards) {
-                const cardCount = {};
-                userCards.forEach(c => {
-                    cardCount[c.card.toString()] = (cardCount[c.card.toString()] || 0) + c.quantity;
-                });
-                for (const offered of offeredCards) {
-                    const cardId = offered.card ? offered.card.toString() : offered.toString();
-                    const qty = offered.quantity || 1;
-                    if (!cardCount[cardId] || cardCount[cardId] < qty) return false;
-                    cardCount[cardId] -= qty;
+            function hasCards(userCards, tradeCards) {
+                const cardCount = new Map();
+                // userCards.forEach(c => {
+                //     cardCount[c.card.toString()] = (cardCount[c.card.toString()] || 0) + c.quantity;
+                // });
+                // for (const offered of offeredCards) {
+                //     const cardId = offered.card ? offered.card.toString() : offered.toString();
+                //     const qty = offered.quantity || 1;
+                //     if (!cardCount[cardId] || cardCount[cardId] < qty) return false;
+                //     cardCount[cardId] -= qty;
+                // }
+                // return true;
+                for(const card of userCards){
+                    cardCount.set(card.card.toString(), card.quantity);
                 }
-                return true;
-            }
 
-            const offeringUserHasCards = hasCards(trade.offeringUser.cards, trade.offeredCards);
-            const receivingUserHasCards = hasCards(trade.receivingUser.cards, trade.requestedCards);
+                for(const tradeCard of tradeCards){
+                    const cardId = tradeCard.card._id ? tradeCard.card._id.toString() : tradeCard.card.toString();
+                    if (!cardCount.has(cardId) || cardCount.get(cardId) < (tradeCard.quantity || 1)) return false;
+                }
+            
+                return true;
+
+            }
+            const offeringUserHasCards = hasCards(offeringUserCards, trade.offeredCards);
+            const receivingUserHasCards = hasCards(receivingUserCards, trade.requestedCards);
 
             if (!offeringUserHasCards) throw new DBError("Offering user does not have all offered cards", 400);
             if (!receivingUserHasCards) throw new DBError("Receiving user does not have all requested cards", 400);
 
             // Move cards
             async function moveCards(fromUserId, toUserId, cards) {
+                console.log("Moving cards:", { fromUserId, toUserId, cards });
                 for (const card of cards) {
-                    const cardId = card.card;
+                    const cardInner = card.card;
+                    const cardId = cardInner._id ? cardInner._id : cardInner;
                     const qty = card.quantity || 1;
+                    console.log(`Moved ${qty} of card ${cardId} from user ${fromUserId} to user ${toUserId}`);
+
+
+                    const fromUser = await userModel.findById(fromUserId).session(session);
+                    const toUser = await userModel.findById(toUserId).session(session);
+
+                    if (!fromUser || !toUser) {
+                        throw new DBError("One of the users involved in the trade was not found", 404);
+                    }
+
+                    // Deduct cards from fromUser
+                    const fromUserCardIndex = fromUser.Cards.findIndex(c => c.card.toString() === cardId.toString());
+                    if (fromUserCardIndex === -1 || fromUser.Cards[fromUserCardIndex].quantity < qty) {
+                        throw new DBError("Offering user does not have enough quantity of the card to trade", 400);
+                    }
+                    fromUser.Cards[fromUserCardIndex].quantity -= qty;
+                    if (fromUser.Cards[fromUserCardIndex].quantity === 0) {
+                        fromUser.Cards.splice(fromUserCardIndex, 1); // Remove card entry if quantity is zero
+                    }
+                    await fromUser.save({ session });
+
+                    // Add cards to toUser
+                    const toUserCardIndex = toUser.Cards.findIndex(c => c.card.toString() === cardId.toString());
+                    if (toUserCardIndex === -1) {
+                        toUser.Cards.push({ card: cardId, quantity: qty });
+                    } else {
+                        toUser.Cards[toUserCardIndex].quantity += qty;
+                    }
+                    await toUser.save({ session });
+
+                    console.log(`Moved ${qty} of card ${cardId} from user ${fromUserId} to user ${toUserId}`);
 
                     // Remove from fromUser
-                    await userModel.updateOne(
-                        { _id: fromUserId, "cards.card": cardId },
-                        { $inc: { "cards.$.quantity": -qty } }
-                    ).session(session);
+                    // await userModel.updateOne(
+                    //     { _id: fromUserId, "cards.card": cardId },
+                    //     { $inc: { "cards.$.quantity": -qty } }
+                    // ).session(session);
 
-                    // Add to toUser
-                    const toUserHasCard = await userModel.findOne({ _id: toUserId, "cards.card": cardId }).session(session);
-                    if (toUserHasCard) {
-                        await userModel.updateOne(
-                            { _id: toUserId, "cards.card": cardId },
-                            { $inc: { "cards.$.quantity": qty } }
-                        ).session(session);
-                    } else {
-                        await userModel.updateOne(
-                            { _id: toUserId },
-                            { $push: { cards: { card: cardId, quantity: qty } } }
-                        ).session(session);
-                    }
+                    // // Add to toUser
+                    // const toUserHasCard = await userModel.findOne({ _id: toUserId, "cards.card": cardId }).session(session);
+                    // if (toUserHasCard) {
+                    //     await userModel.updateOne(
+                    //         { _id: toUserId, "cards.card": cardId },
+                    //         { $inc: { "cards.$.quantity": qty } }
+                    //     ).session(session);
+                    // } else {
+                    //     await userModel.updateOne(
+                    //         { _id: toUserId },
+                    //         { $push: { cards: { card: cardId, quantity: qty } } }
+                    //     ).session(session);
+                    // }
                 }
             }
 
@@ -280,7 +332,7 @@ export const getUserTrades = async (req, res) => {
     const session = await mongoose.startSession();
     try {
         const trades = await session.withTransaction(async () => {
-            const discordID = req.params.discordID;
+            const discordID = req.query.discordID;
             if (!discordID) throw new DBError("No DiscordID provided", 404);
 
             const user = await userModel.findOne({ DiscordID: discordID }).session(session);
