@@ -8,7 +8,7 @@ const cardSchema = new Schema({
     Num: { type: Number, required: true },
     Artist: { type: String, required: true },
     Artwork: {
-        data: Buffer, 
+        data: String, 
         contentType: {
             type: String,
             enum: ['image/png', 'image/jpeg', 'image/gif'],
@@ -16,7 +16,7 @@ const cardSchema = new Schema({
         } 
     },
     Backside: {
-        data: Buffer,
+        data: String,
         contentType: {
             type: String,
             enum: ['image/png', 'image/jpeg', 'image/gif'],

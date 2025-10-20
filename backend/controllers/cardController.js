@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
 import AdmZip from "adm-zip";
 import { parse } from "csv-parse/sync"; 
+import fs from 'fs';
 
 function generateSearchableID(){
     const characters = '1234567890'
@@ -13,7 +14,6 @@ function generateSearchableID(){
     }
     return result
 }
-
 
 async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artwork, Backside, Bio, Power, Speed, Special, session) {
     const validRarities = ['Common', 'Rare', 'Ultra Rare'];
@@ -421,8 +421,7 @@ export const getCard = async (req, res) => {
 
         const cardResponses = cards.map(card => ({
             ...card.toObject(),
-            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`,
-            Backside: (card.backSide) ? `data:${card.backSide.contentType};base64,${card.backSide.data.toString('base64')}` : null
+           
         }));
 
         return res.status(200).json({
@@ -642,12 +641,12 @@ export const getCardForDiscordSoIDontWantToDie = async (req, res) => {
         const setNum = card.set ? (await setModel.findById(card.Set).session(session)).SetNo : null;
 
         if (!card) throw new DBError("Card Not Found", 404);
+
         session.endSession();
         const cardResponse = {
             ...card.toObject(),
             SetNo: setNum,
-            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`,
-            Backside: `data:${card.Backside.contentType};base64,${card.Backside.data.toString('base64')}`
+            
         };
         return res.status(200).json(cardResponse);
     } catch (error) {
