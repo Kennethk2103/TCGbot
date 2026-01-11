@@ -13,7 +13,7 @@ const upload = multer({
     storage,
     limits: { fileSize: 20 * 1024 * 1024 }, 
     fileFilter: (req, file, cb) => {
-        const allowedTypes = ['image/png', 'image/jpeg', 'image/gif'];
+        const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', "image/webp"];
         if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);
         } else {
@@ -36,8 +36,21 @@ const uploadMany = multer({
 
 
 //Will Want to do some admin stuff here 
-router.post("/", authWithDiscordId, checkIfAdmin, upload.fields([{ name: 'Artwork', maxCount: 1 }, { name: 'Backside', maxCount: 1 }]), addCard)
-router.post("/edit", authWithDiscordId, checkIfAdmin, upload.fields([{ name: 'Artwork', maxCount: 1 }, { name: 'Backside', maxCount: 1 }]), editCard)
+router.post(
+  "/",
+  //authWithDiscordId,
+  //checkIfAdmin,
+  (req, res, next) => {
+    upload.single("Artwork")(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ message: err.message });
+      }
+      next();
+    });
+  },
+  addCard
+);
+router.post("/edit", authWithDiscordId, checkIfAdmin, upload.single('Artwork'), editCard)
 router.post("/many", authWithDiscordId, checkIfAdmin, uploadMany.single('Zipfile'), addMany)
 router.get("/", getCard)
 router.post("/remove", authWithDiscordId, checkIfAdmin, removeCardFromSet)

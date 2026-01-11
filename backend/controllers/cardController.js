@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
 import AdmZip from "adm-zip";
 import { parse } from "csv-parse/sync"; 
+import * as nextcloud from "../services/nextcloudClient.js"; // uploadBufferAndShare, deleteShare, deleteFile
 import fs from 'fs';
 
 function generateSearchableID(){
@@ -15,18 +16,33 @@ function generateSearchableID(){
     return result
 }
 
-async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artwork, Backside, Bio, Power, Speed, Special, session) {
-    const validRarities = ['Common', 'Rare', 'Ultra Rare'];
+async function internalAddCard(
+    Name,
+    Subtitle,
+    Rarity,
+    Num,
+    setRef,
+    artworkRef, // <- Nextcloud artwork object
+    Power,
+    Speed,
+    Special,
+    session
+) {
+    const validRarities = ["Common", "Rare", "Ultra Rare"];
 
     if (!Name) throw new DBError("No Name Was Given", 404);
     if (!Subtitle) throw new DBError("No Subtitle Was Given", 404);
     if (!Rarity) throw new DBError("No Rarity Was Given", 404);
-    if (!validRarities.includes(Rarity)) throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(', ')}`, 400);
-    if (!Num) throw new DBError("No Num Was Given", 404);
-    if (!Artwork) throw new DBError("No Artwork Was Given", 404);
-    if (!Backside) throw new DBError("No Backside Was Given", 404);
-    if (!Artist) throw new DBError("No Artist Was Given", 404);
-    if (!Bio) throw new DBError("No Bio Was Given", 404);
+    if (!validRarities.includes(Rarity))
+    throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(", ")}`, 400);
+
+    if (Num === undefined || Num === null) throw new DBError("No Num Was Given", 404);
+
+  // Artwork now must be a Nextcloud ref object
+    if (!artworkRef) throw new DBError("No Artwork Was Given", 404);
+    if (!artworkRef.ncPath || !artworkRef.shareId || !artworkRef.downloadUrl)
+    throw new DBError("Artwork upload did not return required Nextcloud fields", 500);
+
     if (Power === undefined || Power === null) throw new DBError("No Power Was Given", 404);
     if (Speed === undefined || Speed === null) throw new DBError("No Speed Was Given", 404);
     if (Special === undefined || Special === null) throw new DBError("No Special Was Given", 404);
@@ -35,6 +51,7 @@ async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artw
     if (Speed < 0 || Speed > 5) throw new DBError("Speed must be between 0 and 5", 400);
     if (Special < 0 || Special > 5) throw new DBError("Special must be between 0 and 5", 400);
 
+  // Resolve setRef (optional)
     let setId;
     if (setRef) {
         let set;
@@ -43,51 +60,48 @@ async function internaladdCard(Name, Subtitle, Rarity, Num, setRef, Artist, Artw
         } else if (!isNaN(setRef)) {
             set = await setModel.findOne({ SetNo: Number(setRef) }).session(session);
         }
-        if (!set) throw new DBError("Given set was not found", 404);
+    if (!set) throw new DBError("Given set was not found", 404);
         setId = set._id;
     }
 
     let searchID;
-    var foundValidStr = false;
-    while (!foundValidStr) {
+    while (true) {
         searchID = generateSearchableID();
         const existingCard = await cardModel.findOne({ SearchID: searchID }).session(session);
-        if (!existingCard) {
-            foundValidStr = true;
-        }
+        if (!existingCard) break;
     }
 
-    let card = new cardModel({
+    const card = new cardModel({
         Name,
         Subtitle,
         Rarity,
         Set: setId,
         Num,
-        Artist,
         Artwork: {
-            data: Artwork.data,
-            contentType: Artwork.contentType
+            ncPath: artworkRef.ncPath,
+            shareId: artworkRef.shareId,
+            shareUrl: artworkRef.shareUrl,
+            downloadUrl: artworkRef.downloadUrl,
+            contentType: artworkRef.contentType,
+            originalName: artworkRef.originalName,
+            size: artworkRef.size,
+            status: "active",
+            uploadedAt: new Date(),
         },
-        Backside: {
-            data: Backside.data,
-            contentType: Backside.contentType
-        },
-        Bio,
         Power,
         Speed,
         Special,
-        SearchID: searchID
+        SearchID: searchID,
     });
 
     const savedCard = await card.save({ session });
-
     if (!savedCard) throw new DBError("Failed to create new card", 500);
 
     if (setId) {
         await setModel.updateOne(
-            { _id: setId },
-            { $push: { cards: savedCard._id } },
-            { session }
+        { _id: setId },
+        { $push: { cards: savedCard._id } },
+        { session }
         );
     }
 
@@ -101,50 +115,64 @@ Subtitle: String
 Rarity: String enum 
 Num: Number 
 setRef: _id (string) OR SetNo (number) (This is optional.  It may be omitted if the card is not part of a set)
-Artist: String 
-Artwork: file [.jpg, .png, .gif]
-Backside: file [.jpg, .png, .gif]
-Bio: String
+Artwork: file [.jpg, .png, .gif, .webp]
 Power: Number (0-5)
 Speed: Number (0-5)
 Special: Number (0-5)
 */
 export const addCard = async (req, res) => {
     const session = await mongoose.startSession();
-    const validRarities = ['Common', 'Rare', 'Ultra Rare'];
+    let uploadedArtwork = null;
 
     try {
+        console.log("Entered try")
+        const body = req.body || {};
+
+        const artworkBuffer =
+        body.Artwork?.data ? Buffer.from(body.Artwork.data, "base64") : req.file?.buffer;
+
+        const artworkContentType =
+        body.Artwork?.contentType ? body.Artwork.contentType : req.file?.mimetype;
+
+        const artworkOriginalName =
+        body.Artwork?.originalName ? body.Artwork.originalName : req.file?.originalname || "artwork";
+
+        if (!artworkBuffer) throw new DBError("No Artwork Was Given", 404);
+        if (!artworkContentType) throw new DBError("Artwork contentType is missing", 400);
+
+        uploadedArtwork = await nextcloud.uploadBufferAndShare({
+        buffer: artworkBuffer,
+        originalName: artworkOriginalName, 
+        });
+
+        if (!uploadedArtwork.shareId) {
+        throw new DBError("Nextcloud upload did not return shareId (needed for revoke/delete)", 500);
+        }
+
+        // ---- 3) Mongo transaction (DB work only) ----
         const savedCard = await session.withTransaction(async () => {
-            const body = req.body;
-            console.log("Request body:", body);
+        const setRef = body.SetRef?.trim() || null;
 
-            const Artwork = {
-                data: (body.Artwork?.data) ? body.Artwork.data : req.file?.buffer,
-                contentType: (body.Artwork?.contentType) ? body.Artwork.contentType : req.file?.mimetype
-            };
-
-            const Backside = {
-                data: (body.Backside?.data) ? body.Backside.data : req.file?.backsideBuffer,
-                contentType: (body.Backside?.contentType) ? body.Backside.contentType : req.file?.backsideMimetype
-            };
-
-            const setRef = body.SetRef?.trim() || null;
-
-            return internaladdCard(
-                body.Name,
-                body.Subtitle,
-                body.Rarity,
-                body.Num,
-                setRef,
-                body.Artist,
-                Artwork,
-                Backside,
-                body.Bio,
-                body.Power,
-                body.Speed,
-                body.Special,
-                session
-            );
+        return internalAddCard(
+            body.Name,
+            body.Subtitle,
+            body.Rarity,
+            body.Num,
+            setRef,
+            {
+            ncPath: uploadedArtwork.ncPath,
+            shareId: uploadedArtwork.shareId,
+            shareUrl: uploadedArtwork.shareUrl,
+            downloadUrl: uploadedArtwork.downloadUrl,
+            contentType: uploadedArtwork.mimeType, 
+            originalName: artworkOriginalName,
+            size: uploadedArtwork.size,
+            },
+            body.Power,
+            body.Speed,
+            body.Special,
+            session
+        );
         });
 
         session.endSession();
@@ -152,23 +180,37 @@ export const addCard = async (req, res) => {
     } catch (error) {
         session.endSession();
 
+        if (uploadedArtwork?.shareId || uploadedArtwork?.ncPath) {
+        try {
+            if (uploadedArtwork.shareId) await nextcloud.deleteShare(uploadedArtwork.shareId);
+        } catch {}
+        try {
+            if (uploadedArtwork.ncPath) await nextcloud.deleteFile(uploadedArtwork.ncPath);
+        } catch {}
+        }
+
         let code = 500;
-        let message = error.message;
+        let message = error?.message || "Server error";
 
         if (error instanceof DBError) {
-            code = error.statusCode;
-        } else if (error.code === 11000) {
-            code = 400;
-            if (error.keyPattern?.Set && error.keyPattern?.Num) {
-                message = "A card with this number already exists in the given set.";
-            } else {
-                message = "Duplicate field value entered.";
-            }
+        code = error.statusCode;
+        } else if (error?.code === 11000) {
+        code = 400;
+        if (error.keyPattern?.Set && error.keyPattern?.Num) {
+            message = "A card with this number already exists in the given set.";
+        } else if (error.keyPattern?.SearchID) {
+            message = "Duplicate SearchID generated; please retry.";
+        } else {
+            message = "Duplicate field value entered.";
+        }
         }
 
         return res.status(code).json({ message });
     }
 };
+
+//---------------------------------------------------------------------------------------------------------EVERYTHING BELOW HERE NEEDS TO BE UP`DATED FOR NEXTCLOUD USAGE TOO--------------------------------------------------------------------------------------------------
+
 
 /*
 Expects:
