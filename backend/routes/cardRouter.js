@@ -50,8 +50,10 @@ router.post(
   },
   addCard
 );
-router.post("/edit", authWithDiscordId, checkIfAdmin, upload.single('Artwork'), editCard)
-router.post("/many", authWithDiscordId, checkIfAdmin, uploadMany.single('Zipfile'), addMany)
+
+//Dont forget to add authWithDiscordId, checkIfAdmin, to all these 
+router.post("/edit",  upload.single('Artwork'), editCard)
+router.post("/many", uploadMany.single('Zipfile'), addMany)
 router.get("/", getCard)
 router.post("/remove", authWithDiscordId, checkIfAdmin, removeCardFromSet)
 router.delete("/", authWithDiscordId, checkIfAdmin, deleteCard)

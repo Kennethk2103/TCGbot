@@ -6,6 +6,7 @@ import AdmZip from "adm-zip";
 import { parse } from "csv-parse/sync"; 
 import * as nextcloud from "../services/nextcloudClient.js"; // uploadBufferAndShare, deleteShare, deleteFile
 import fs from 'fs';
+import mime from "mime-types";
 
 function generateSearchableID(){
     const characters = '1234567890'
@@ -125,7 +126,6 @@ export const addCard = async (req, res) => {
     let uploadedArtwork = null;
 
     try {
-        console.log("Entered try")
         const body = req.body || {};
 
         const artworkBuffer =
@@ -209,145 +209,183 @@ export const addCard = async (req, res) => {
     }
 };
 
-//---------------------------------------------------------------------------------------------------------EVERYTHING BELOW HERE NEEDS TO BE UP`DATED FOR NEXTCLOUD USAGE TOO--------------------------------------------------------------------------------------------------
-
-
 /*
 Expects:
-Zipfile: a zip file containing: 
-1. metadata.csv with columns:
-- Name: String
-- Subtitle: String
-- Rarity: String enum (Common, Rare, Ultra Rare)
-- Num: Number
-- setRef: _id (string) OR SetNo (number)
-- Artist: String
-- ArtworkFile: String (filename of the image in the zip under images/)
-- BacksideFile: String (filename of the backside image in the zip under images/)
-- Bio: String
-- Power: Number (0-5)
-- Speed: Number (0-5)
-- Special: Number (0-5)
-2. images/: a folder containing images with the filenames matching the ArtworkFile and BacksideFile columns in metadata.csv
+Zipfile: zip containing:
+- Name
+- Subtitle
+- Rarity (Common, Rare, Ultra Rare)
+- Num
+- setRef (optional) : SetNo or ObjectId string
+- ArtworkFile (filename under images/)
+- Power (0-5)
+- Speed (0-5)
+- Special (0-5)
+
+2) images/ folder with artwork files matching ArtworkFile
 */
 export const addMany = async (req, res) => {
     const session = await mongoose.startSession();
 
+    //Keep track of uploaded Nextcloud assets so we can clean them up on failure
+     const uploadedAssets = []; // { shareId, ncPath }
+
     try {
-        const savedCards = await session.withTransaction(async () => {
-            if (!req.file) throw new DBError("No Zipfile Was Given", 404);
+        if (!req.file) throw new DBError("No Zipfile Was Given", 404);
 
-            const zip = new AdmZip(req.file.buffer);
-            const entries = zip.getEntries();
+        //Read zip contents
+        const zip = new AdmZip(req.file.buffer);
+        const entries = zip.getEntries();
 
-            let csvData = null;
-            const images = {};
+        let csvData = null;
+        const images = new Map(); // { buffer, contentType, originalName }
 
-            for (const entry of entries) {
-                if (entry.isDirectory) continue;
+        for (const entry of entries) {
+        if (entry.isDirectory) continue;
 
-                if (/\.csv$/i.test(entry.entryName)) {
-                    csvData = entry.getData().toString("utf-8");
-                } else if (/images\/.+\.(png|jpe?g|gif)$/i.test(entry.entryName)) {
-                    const filename = entry.entryName.split("/").pop();
-                    images[filename] = {
-                        data: entry.getData(),
-                        contentType: getMimeType(filename)
-                    };
-                }
-            }
-
-            if (!csvData) throw new DBError("metadata.csv not found in zip", 400);
-
-            const records = parse(csvData, {
-                columns: true,
-                skip_empty_lines: true
-            });
-
-            const created = [];
-            for (const row of records) {
-                const {
-                    Name,
-                    Subtitle,
-                    Rarity,
-                    Num,
-                    setRef,
-                    Artist,
-                    ArtworkFile,
-                    BacksideFile,
-                    Bio,
-                    Power,
-                    Speed,
-                    Special
-                } = row;
-
-                const Artwork = images[ArtworkFile];
-                if (!Artwork) throw new DBError(`Image ${ArtworkFile} not found in zip`, 400);
-
-                const Backside = images[BacksideFile];
-                if (!Backside) throw new DBError(`Backside image ${BacksideFile} not found in zip`, 400);
-
-                // Convert Power, Speed, Special to numbers
-                const powerNum = Number(Power);
-                const speedNum = Number(Speed);
-                const specialNum = Number(Special);
-
-                const card = await internaladdCard(
-                    Name,
-                    Subtitle,
-                    Rarity,
-                    Num,
-                    setRef,
-                    Artist,
-                    Artwork,
-                    Backside,
-                    Bio,
-                    powerNum,
-                    speedNum,
-                    specialNum,
-                    session
-                );
-
-                created.push(card);
-            }
-
-            return created;
-        });
-
-        session.endSession();
-        return res.status(200).json({
-            count: savedCards.length,
-            message: "Cards successfully created",
-            cardIDs: savedCards.map(c => c._id)
-        });
-
-    } catch (error) {
-        session.endSession();
-
-        let code = 500;
-        let message = error.message;
-
-        if (error instanceof DBError) {
-            code = error.statusCode;
-        } else if (error.code === 11000) {
-            code = 400;
-            if (error.keyPattern?.Set && error.keyPattern?.Num) {
-                message = "A card with this number already exists in the given set.";
-            } else {
-                message = "Duplicate field value entered.";
-            }
+        if (/metadata\.csv$/i.test(entry.entryName) || /\.csv$/i.test(entry.entryName)) {
+            //Prefer metadata.csv, but allow any .csv if only one exists
+            csvData = entry.getData().toString("utf-8");
+        } else if (/^images\/.+\.(png|jpe?g|gif|webp)$/i.test(entry.entryName)) {
+            const filename = entry.entryName.split("/").pop();
+            const buffer = entry.getData();
+            const contentType = mime.lookup(filename) || "application/octet-stream";
+            images.set(filename, { buffer, contentType, originalName: filename });
+        }
         }
 
-        return res.status(code).json({ message });
+        if (!csvData) throw new DBError("metadata.csv not found in zip", 400);
+
+        //Parse CSV 
+        const records = parse(csvData, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        });
+
+        if (!Array.isArray(records) || records.length === 0) {
+        throw new DBError("metadata.csv has no rows", 400);
+        }
+
+        // Validate rows + ensure referenced images exist
+        const work = records.map((row, idx) => {
+        const Name = row.Name;
+        const Subtitle = row.Subtitle;
+        const Rarity = row.Rarity;
+        const Num = row.Num;
+        const setRef = row.setRef || row.SetRef || null;
+        const ArtworkFile = row.ArtworkFile;
+
+        const Power = Number(row.Power);
+        const Speed = Number(row.Speed);
+        const Special = Number(row.Special);
+
+        if (!ArtworkFile) throw new DBError(`Row ${idx + 1}: ArtworkFile missing`, 400);
+
+        const artwork = images.get(ArtworkFile);
+        if (!artwork) throw new DBError(`Row ${idx + 1}: Image ${ArtworkFile} not found in zip`, 400);
+
+        return {
+            Name,
+            Subtitle,
+            Rarity,
+            Num,
+            setRef,
+            artwork,
+            Power,
+            Speed,
+            Special,
+            rowIndex: idx + 1,
+        };
+        });
+
+    //Upload ALL artworks to Nextcloud
+    const batchFolder = "";
+
+    for (const item of work) {
+        const uploaded = await nextcloud.uploadBufferAndShare({
+            buffer: item.artwork.buffer,
+            originalName: item.artwork.originalName,
+            folder: batchFolder,
+        });
+
+    if (!uploaded?.shareId || !uploaded?.ncPath || !uploaded?.downloadUrl) {
+        throw new DBError(`Nextcloud upload failed for row ${item.rowIndex}`, 500);
+    }
+
+    uploadedAssets.push({ shareId: uploaded.shareId, ncPath: uploaded.ncPath });
+
+    item.artworkRef = {
+        ncPath: uploaded.ncPath,
+        shareId: uploaded.shareId,
+        shareUrl: uploaded.shareUrl,
+        downloadUrl: uploaded.downloadUrl,
+        contentType: uploaded.mimeType, 
+        originalName: item.artwork.originalName,
+        size: uploaded.size,
+    };
+    }
+
+    //Create all cards inside a single Mongo transaction
+    const savedCards = await session.withTransaction(async () => {
+        const created = [];
+
+        for (const item of work) {
+        const card = await internalAddCard(
+            item.Name,
+            item.Subtitle,
+            item.Rarity,
+            item.Num,
+            item.setRef,
+            item.artworkRef,
+            item.Power,
+            item.Speed,
+            item.Special,
+            session
+        );
+
+        created.push(card);
+        }
+
+        return created;
+    });
+
+    session.endSession();
+    return res.status(200).json({
+        count: savedCards.length,
+        message: "Cards successfully created",
+        cardIDs: savedCards.map((c) => c.SearchID), // nicer than _id for your app
+    });
+    } catch (error) {
+    session.endSession();
+
+    //Cleanup Nextcloud uploads if anything failed
+    for (const asset of uploadedAssets) {
+        try {
+        if (asset.shareId) await nextcloud.deleteShare(asset.shareId);
+        } catch {}
+        try {
+        if (asset.ncPath) await nextcloud.deleteFile(asset.ncPath);
+        } catch {}
+    }
+
+    let code = 500;
+    let message = error?.message || "Server error";
+
+    if (error instanceof DBError) {
+        code = error.statusCode;
+    } else if (error?.code === 11000) {
+        code = 400;
+        if (error.keyPattern?.Set && error.keyPattern?.Num) {
+        message = "A card with this number already exists in the given set.";
+        } else {
+        message = "Duplicate field value entered.";
+        }
+    }
+
+    return res.status(code).json({ message });
     }
 };
-
-function getMimeType(filename) {
-    if (filename.endsWith(".png")) return "image/png";
-    if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) return "image/jpeg";
-    if (filename.endsWith(".gif")) return "image/gif";
-    return "application/octet-stream";
-}
 
 export const editCard = async (req, res) => {
     const session = await mongoose.startSession();
