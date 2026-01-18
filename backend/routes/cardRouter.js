@@ -11,7 +11,7 @@ router.use(bodyParser.json());
 const storage = multer.memoryStorage();
 const upload = multer({
     storage,
-    limits: { fileSize: 20 * 1024 * 1024 }, 
+    limits: { fileSize: 40 * 1024 * 1024 }, 
     fileFilter: (req, file, cb) => {
         const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', "image/webp"];
         if (allowedTypes.includes(file.mimetype)) {
@@ -24,7 +24,7 @@ const upload = multer({
 
 const uploadMany = multer({
     storage,
-    limits: { fileSize: 100 * 1024 * 1024 }, 
+    limits: { fileSize: 200 * 1024 * 1024 }, 
     fileFilter: (req, file, cb) => {
         if (file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed') {
             cb(null, true);
@@ -51,9 +51,25 @@ router.post(
   addCard
 );
 
-//Dont forget to add authWithDiscordId, checkIfAdmin, to all these 
-router.post("/edit",  upload.single('Artwork'), editCard)
-router.post("/many", uploadMany.single('Zipfile'), addMany)
+
+router.post(
+"/edit",
+//authWithDiscordId,
+//checkIfAdmin,
+(req, res, next) => {
+    upload.single("Artwork")(req, res, (err) => {
+    if (err) {
+        return res.status(400).json({
+        message: err.message,
+        });
+    }
+    next();
+    });
+},
+editCard
+);
+
+router.post("/many", authWithDiscordId, checkIfAdmin, uploadMany.single('Zipfile'), addMany)
 router.get("/", getCard)
 router.post("/remove", authWithDiscordId, checkIfAdmin, removeCardFromSet)
 router.delete("/", authWithDiscordId, checkIfAdmin, deleteCard)

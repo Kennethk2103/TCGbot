@@ -387,135 +387,199 @@ export const addMany = async (req, res) => {
     }
 };
 
+/*
+Expects:
+ID: String (_id or SearchID)
+Name: String (optional)
+Subtitle: String (optional)
+Rarity: String enum (Common, Rare, Ultra Rare) (optional)
+Num: Number (optional)
+Artwork: file [.jpg, .png, .gif, .webp] (optional)
+Power: Number (0–5) (optional)
+Speed: Number (0–5) (optional)
+Special: Number (0–5) (optional)
+*/
 export const editCard = async (req, res) => {
     const session = await mongoose.startSession();
-    const validRarities = ['Common', 'Rare', 'Ultra Rare'];
+    const validRarities = ["Common", "Rare", "Ultra Rare"];
+
+    // Track uploads for cleanup if DB fails
+    let newArtworkUpload = null;
+
+    // Track old artwork for deletion after successful commit
+    let oldArtworkToDelete = null;
 
     try {
-        await session.withTransaction(async () => {
-            const body = req.body;
+        const body = req.body || {};
+        if (!body.ID) throw new DBError("No Card ID given!", 404);
 
-            if (!body.ID) throw new DBError("No Card ID given!", 404);
-
-            let card = await cardModel.findById(body.ID).session(session);
-            if (!card) {
-                card = await cardModel.findOne({ SearchID: body.ID }).session(session);
-            }
-            if (!card) throw new DBError("Card Not Found", 404);
-
-            if (body.Name) card.Name = body.Name;
-            if (body.Subtitle) card.Subtitle = body.Subtitle;
-            if (body.Rarity) {
-                if (!validRarities.includes(body.Rarity)) {
-                    throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(', ')}`, 400);
-                }
-                card.Rarity = body.Rarity;
-            }
-            if (body.Num !== undefined) card.Num = body.Num;
-            if (body.Artist) card.Artist = body.Artist;
-            if (body.Artwork) {
-                card.Artwork = {
-                    data: body.Artwork.data,
-                    contentType: body.Artwork.contentType
-                };
-            }
-            if (body.Bio) card.Bio = body.Bio;
-            if (body.Power !== undefined) {
-                if (body.Power < 0 || body.Power > 5) throw new DBError("Power must be between 0 and 5", 400);
-                card.Power = body.Power;
-            }
-            if (body.Speed !== undefined) {
-                if (body.Speed < 0 || body.Speed > 5) throw new DBError("Speed must be between 0 and 5", 400);
-                card.Speed = body.Speed;
-            }
-            if (body.Special !== undefined) {
-                if (body.Special < 0 || body.Special > 5) throw new DBError("Special must be between 0 and 5", 400);
-                card.Special = body.Special;
-            }
-
-            // If editing Num or Set, check for duplicate in set
-            if (card.Set && card.Num !== undefined) {
-                const existingCard = await cardModel.findOne({
-                    _id: { $ne: card._id },
-                    Set: card.Set,
-                    Num: card.Num
-                }).session(session);
-
-                if (existingCard) {
-                    throw new DBError("A card with this number already exists in the given set.", 400);
-                }
-            }
-
-            await card.save({ session });
+        // If a new file was sent, upload it to Nextcloud first
+        if (req.file) {
+        newArtworkUpload = await nextcloud.uploadBufferAndShare({
+            buffer: req.file.buffer,
+            originalName: req.file.originalname,
+            folder: "", 
         });
 
-        session.endSession();
-        return res.status(200).json({ cardID: req.body.ID, message: "Card successfully edited" });
+        if (!newArtworkUpload?.shareId || !newArtworkUpload?.ncPath || !newArtworkUpload?.downloadUrl) {
+            throw new DBError("Nextcloud upload did not return required fields", 500);
+        }
+        }
 
-    } catch (error) {
-        session.endSession();
+        // update fields + swap artwork ref
+        await session.withTransaction(async () => {
+        let card = null;
 
-        let code = 500;
-        let message = error.message;
+        if (mongoose.Types.ObjectId.isValid(body.ID)) {
+            card = await cardModel.findById(body.ID).session(session);
+        }
+        if (!card) {
+            card = await cardModel.findOne({ SearchID: body.ID }).session(session);
+        }
+        if (!card) throw new DBError("Card Not Found", 404);
 
-        if (error instanceof DBError) {
-            code = error.statusCode;
-        } else if (error.code === 11000) {
-            code = 400;
-            if (error.keyPattern?.Set && error.keyPattern?.Num) {
-                message = "A card with this number already exists in the given set.";
-            } else {
-                message = "Duplicate field value entered.";
+        // Save old artwork info so we can delete AFTER commit
+        if (newArtworkUpload) {
+            oldArtworkToDelete = card.Artwork
+            ? { shareId: card.Artwork.shareId, ncPath: card.Artwork.ncPath }
+            : null;
+
+            card.Artwork = {
+            ncPath: newArtworkUpload.ncPath,
+            shareId: newArtworkUpload.shareId,
+            shareUrl: newArtworkUpload.shareUrl,
+            downloadUrl: newArtworkUpload.downloadUrl,
+            contentType: newArtworkUpload.mimeType ?? req.file.mimetype,
+            originalName: req.file.originalname,
+            size: newArtworkUpload.size ?? req.file.size,
+            status: "active",
+            uploadedAt: new Date(),
+            };
+        }
+
+        // Normal field edits
+        if (body.Name) card.Name = body.Name;
+        if (body.Subtitle) card.Subtitle = body.Subtitle;
+
+        if (body.Rarity) {
+            if (!validRarities.includes(body.Rarity)) {
+            throw new DBError(`Invalid Rarity: must be one of ${validRarities.join(", ")}`, 400);
+            }
+            card.Rarity = body.Rarity;
+        }
+
+        if (body.Num !== undefined) card.Num = Number(body.Num);
+
+        if (body.Power !== undefined) {
+            const p = Number(body.Power);
+            if (p < 0 || p > 5) throw new DBError("Power must be between 0 and 5", 400);
+            card.Power = p;
+        }
+
+        if (body.Speed !== undefined) {
+            const s = Number(body.Speed);
+            if (s < 0 || s > 5) throw new DBError("Speed must be between 0 and 5", 400);
+            card.Speed = s;
+        }
+
+        if (body.Special !== undefined) {
+            const sp = Number(body.Special);
+            if (sp < 0 || sp > 5) throw new DBError("Special must be between 0 and 5", 400);
+            card.Special = sp;
+        }
+
+        // Duplicate check (Set + Num)
+        if (card.Set && card.Num !== undefined) {
+            const existingCard = await cardModel.findOne({
+            _id: { $ne: card._id },
+            Set: card.Set,
+            Num: card.Num,
+            }).session(session);
+
+            if (existingCard) {
+            throw new DBError("A card with this number already exists in the given set.", 400);
             }
         }
 
+        await card.save({ session });
+        });
+
+        session.endSession();
+
+        //delete old Nextcloud asset
+        if (newArtworkUpload && oldArtworkToDelete?.shareId) {
+        try { await nextcloud.deleteShare(oldArtworkToDelete.shareId); } catch {}
+        }
+        if (newArtworkUpload && oldArtworkToDelete?.ncPath) {
+        try { await nextcloud.deleteFile(oldArtworkToDelete.ncPath); } catch {}
+        }
+
+        return res.status(200).json({ cardID: body.ID, message: "Card successfully edited" });
+    } catch (error) {
+        session.endSession();
+
+        //cleanup new upload
+        if (newArtworkUpload?.shareId) {
+        try { await nextcloud.deleteShare(newArtworkUpload.shareId); } catch {}
+        }
+        if (newArtworkUpload?.ncPath) {
+        try { await nextcloud.deleteFile(newArtworkUpload.ncPath); } catch {}
+        }
+
+        let code = 500;
+        let message = error?.message || "Server error";
+
+        if (error instanceof DBError) {
+        code = error.statusCode;
+        } else if (error?.code === 11000) {
+        code = 400;
+        if (error.keyPattern?.Set && error.keyPattern?.Num) {
+            message = "A card with this number already exists in the given set.";
+        } else {
+            message = "Duplicate field value entered.";
+        }
+        }
         return res.status(code).json({ message });
     }
 };
 
 
+
 export const getCard = async (req, res) => {
-    const session = await mongoose.startSession();
     try {
         const { ID, Name } = req.query;
 
-        let cards;
+        let cards = [];
 
-        await session.withTransaction(async () => {
-            if (ID) {
-                var card = await cardModel.findById(ID).session(session);
-                if(!card){
-                    card = await cardModel.findOne({ SearchID: ID }).session(session);
-                }
-                if (!card) throw new DBError("Card Not Found", 404);
-                cards = [card];
-            } else if (Name) {
-                cards = await cardModel.find({ Name }).session(session);
-                if (cards.length === 0) throw new DBError("No cards found with that name", 404);
-            } else {
-                throw new DBError("No ID or Name provided to search for card(s)", 400);
-            }
-        });
+        if (ID) {
+        let card = null;
 
-        session.endSession();
+        if (mongoose.Types.ObjectId.isValid(ID)) {
+            card = await cardModel.findById(ID);
+        }
+        if (!card) {
+            card = await cardModel.findOne({ SearchID: ID });
+        }
 
-        const cardResponses = cards.map(card => ({
-            ...card.toObject(),
-           
-        }));
+        if (!card) throw new DBError("Card Not Found", 404);
+        cards = [card];
+        } else if (Name) {
+        cards = await cardModel.find({ Name });
+        if (cards.length === 0) throw new DBError("No cards found with that name", 404);
+        } else {
+        throw new DBError("No ID or Name provided to search for card(s)", 400);
+        }
 
         return res.status(200).json({
-            count: cardResponses.length,
-            cards: cardResponses
+        count: cards.length,
+        cards: cards.map((c) => c.toObject()),
         });
-
     } catch (error) {
-        session.endSession();
-
         const code = error instanceof DBError ? error.statusCode : 500;
         return res.status(code).json({ message: error.message });
     }
 };
+
 
 
 async function internalRemoveFromSet(cardID, session) {
@@ -664,26 +728,48 @@ export const removeCardFromSet = async (req, res) => {
 
 export const deleteCard = async (req, res) => {
     const session = await mongoose.startSession();
-    try{
-        await session.withTransaction(async () => {
-            const { cardID } = req.body;
-            if (!cardID) throw new DBError("No cardID provided", 400);
+    let artworkToDelete = null;
 
-            await internalRemoveFromSet(cardID, session);
-            var deletedcard = await cardModel.findByIdAndDelete(cardID).session(session)
-            if(!deletedcard){
-                deletedcard = await cardModel.findOneAndDelete({ SearchID: cardID }).session(session);
-            }
-            if(!deletedcard) throw new DBError("Card Not Found", 404);
-        })
+    try {
+        await session.withTransaction(async () => {
+        const cardID = req.body?.cardID || req.query?.cardID;
+        if (!cardID) throw new DBError("No cardID provided", 400);
+        let card = null;
+
+        if (mongoose.Types.ObjectId.isValid(cardID)) {
+            card = await cardModel.findById(cardID).session(session);
+        }
+        if (!card) {
+            card = await cardModel.findOne({ SearchID: cardID }).session(session);
+        }
+        if (!card) throw new DBError("Card Not Found", 404);
+
+        if (card.Artwork?.ncPath || card.Artwork?.shareId) {
+            artworkToDelete = {
+            ncPath: card.Artwork.ncPath,
+            shareId: card.Artwork.shareId,
+            };
+        }
+        await internalRemoveFromSet(card._id.toString(), session);
+        await cardModel.deleteOne({ _id: card._id }).session(session);
+        });
+
         session.endSession();
+        if (artworkToDelete?.shareId) {
+        try { await nextcloud.deleteShare(artworkToDelete.shareId); } catch {}
+        }
+        if (artworkToDelete?.ncPath) {
+        try { await nextcloud.deleteFile(artworkToDelete.ncPath); } catch {}
+        }
+
         return res.status(200).json({ message: "Card deleted." });
     } catch (error) {
-        const code = error instanceof DBError ? error.statusCode : 500;
         session.endSession();
+        const code = error instanceof DBError ? error.statusCode : 500;
         return res.status(code).json({ message: error.message });
     }
-}
+};
+
 
 export const getAllCards = async (req, res) => {
     const session = await mongoose.startSession(); 
@@ -709,29 +795,29 @@ export const getAllCards = async (req, res) => {
 }
 
 export const getCardForDiscordSoIDontWantToDie = async (req, res) => {
-    const session = await mongoose.startSession();
-    try {
-        const { ID } = req.query;
-        if (!ID) throw new DBError("No ID provided", 400);
+try {
+    const { ID } = req.query;
+    if (!ID) throw new DBError("No ID provided", 400);
 
-        let card = await cardModel.findOne({ SearchID: ID }).session(session);
-        if (!card) {
-            card = await cardModel.findById(ID).session(session);
-        }
-        const setNum = card.set ? (await setModel.findById(card.Set).session(session)).SetNo : null;
-
-        if (!card) throw new DBError("Card Not Found", 404);
-
-        session.endSession();
-        const cardResponse = {
-            ...card.toObject(),
-            SetNo: setNum,
-            
-        };
-        return res.status(200).json(cardResponse);
-    } catch (error) {
-        const code = error instanceof DBError ? error.statusCode : 500;
-        session.endSession();
-        return res.status(code).json({ message: error.message });
+    let card = await cardModel.findOne({ SearchID: ID });
+    if (!card && mongoose.Types.ObjectId.isValid(ID)) {
+    card = await cardModel.findById(ID);
     }
+
+    if (!card) throw new DBError("Card Not Found", 404);
+
+    let SetNo = null;
+    if (card.Set) {
+    const setDoc = await setModel.findById(card.Set);
+    SetNo = setDoc ? setDoc.SetNo : null;
+    }
+
+    return res.status(200).json({
+    ...card.toObject(),
+    SetNo,
+    });
+} catch (error) {
+    const code = error instanceof DBError ? error.statusCode : 500;
+    return res.status(code).json({ message: error.message });
+}
 };
