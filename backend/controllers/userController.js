@@ -4,6 +4,7 @@ import userModel from '../models/user.js';
 import tradeModel from '../models/trade.js';
 import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
+import { getPackOdds, getPityThreshold } from './packOdds.js';
 
 /*
 Expects: Username, DiscordID, Pin
@@ -380,13 +381,14 @@ export async function giveDailyPack() {
     }
 }
 
-async function internalEditUser(userID, Pin, packsAvailable, session){
+async function internalEditUser(userID, Pin, packsAvailable, Pity, session){
     try{
         const user = await userModel.findById(userID).session(session);
         if (!user) throw new DBError("User Not Found", 404);
         
         if(packsAvailable !== undefined) user.packsAvailable = packsAvailable
         if(Pin !== undefined) user.Pin = Pin
+        if(Pity !== undefined) user.UltraRarePity = Pity
 
         await user.save({ session  });        
         return user; 
@@ -422,7 +424,7 @@ export const editUserInfo = async(req, res) => {
                 throw new DBError("No User was found.  Please make sure you provided a Username, DiscordID, or ID", 400);
             }
 
-            return await internalEditUser(foundUser._id, body.Pin, body.packsAvailable, session)
+            return await internalEditUser(foundUser._id, body.Pin, body.packsAvailable, undefined, session)
         })
 
         session.endSession();
@@ -433,6 +435,19 @@ export const editUserInfo = async(req, res) => {
         return res.status(code).json({ message: error.message });          
     }
 }
+
+function rollRarity(weights) {
+    const roll = Math.random() * 100;
+    let cumulative = 0;
+
+    for (const w of weights) {
+        cumulative += w.chance;
+        if (roll <= cumulative) return w.rarity;
+    }
+
+    return weights[weights.length - 1].rarity;
+}
+
 
 /*
 Expects UserID, DiscordID, or Username 
@@ -460,7 +475,7 @@ export const openPack = async(req, res) => {
                 throw new DBError("No User was found.  Please make sure you provided a Username, DiscordID, or ID", 400);
             }    
 
-            //if(foundUser.packsAvailable <= 0 ) throw new DBError("User has no packs to open!")
+            if(foundUser.packsAvailable <= 0 ) throw new DBError("User has no packs to open!")
 
             let setId
             if(body.setID){
@@ -473,50 +488,66 @@ export const openPack = async(req, res) => {
                 if(!matchset) throw new DBError("Set with that Set Number not found", 404);
                 setId = matchset._id
             }
-            
-            const card1 = await cardModel.aggregate([
-                {
-                    $match: {
-                        Rarity: "Common",
-                        ...(setId ? { Set: setId } : {})  
-                    }
-                },
-                { $sample: { size: 1 } }
-            ]).session(session);;      
-            
-            const card2 = await cardModel.aggregate([
-                {
-                    $match: {
-                        Rarity: { $in: ["Common", "Rare"] },
-                        ...(setId ? { Set: setId } : {})  
-                    }
-                },
-                { $sample: { size: 1 } }
-            ]).session(session);;  
 
-            const card3 = await cardModel.aggregate([
-                {
-                    $match: {
-                        ...(setId ? { Set: setId } : {})  
-                    }
-                },
-                { $sample: { size: 1 } }
-            ]).session(session);
+            const packOdds = getPackOdds();
+            const pityTriggered = foundUser.UltraRarePity >= getPityThreshold();
+            const cardsToGive = [];
 
-            if (!card1.length || !card2.length || !card3.length) {
-                throw new DBError("A card could not be given for some reason!", 404);
+            let ultraPulled = false;
+
+            for (let i = 0; i < 5; i++) {
+
+                let rarity;
+
+                if (pityTriggered && i === 4 && !ultraPulled) {
+                    rarity = "Ultra Rare";
+                    ultraPulled = true;
+                } else {
+                    rarity = rollRarity(packOdds[i]);
+                }
+
+                const [card] = await cardModel.aggregate([
+                    {
+                        $match: {
+                            Rarity: rarity,
+                            ...(setId ? { Set: setId } : {})
+                        }
+                    },
+                    { $sample: { size: 1 } }
+                ]).session(session);
+
+                if (!card) {
+                    throw new DBError(`Failed to pull card for slot ${i + 1}`, 404);
+                }
+
+                    if (rarity === "Ultra Rare") {
+                        ultraPulled = true;
+                    }
+                    
+                cardsToGive.push(card);
             }
 
-            const card1Doc = card1[0];
-            const card2Doc = card2[0];
-            const card3Doc = card3[0];
+            let newPity;
 
-            await internalGiveCardToUser(card1Doc._id, foundUser._id, session)
-            await internalGiveCardToUser(card2Doc._id, foundUser._id, session)
-            await internalGiveCardToUser(card3Doc._id, foundUser._id, session)
+            if (ultraPulled) {
+                newPity = 0;
+            } else {
+                newPity = foundUser.UltraRarePity + 1;
+            }
 
-            await internalEditUser(foundUser._id, undefined, foundUser.packsAvailable-1, session)
-            return [card1Doc, card2Doc, card3Doc]
+            for (const card of cardsToGive) {
+                await internalGiveCardToUser(card._id, foundUser._id, session);
+            }
+
+            await internalEditUser(
+                foundUser._id,
+                undefined,
+                foundUser.packsAvailable - 1,
+                newPity,
+                session
+            );
+
+            return cardsToGive;
         })
         session.endSession();
         return res.status(200).json({ message: `${foundUser.Username} opened a pack!`, cards: recieved.map(c => c._id) });

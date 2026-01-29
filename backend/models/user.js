@@ -10,6 +10,7 @@ const userSchema = new Schema({
         card: { type: mongoose.Schema.Types.ObjectId, ref: 'Card' },
         quantity: { type: Number, default: 1 }
     }],
+    UltraRarePity: {type: Number, default: 0},
     //Trades: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Trade', default: [] }],
 })
 
