@@ -38,8 +38,8 @@ const uploadMany = multer({
 //Will Want to do some admin stuff here 
 router.post(
   "/",
-  //authWithDiscordId,
-  //checkIfAdmin,
+  authWithDiscordId,
+  checkIfAdmin,
   (req, res, next) => {
     upload.single("Artwork")(req, res, (err) => {
       if (err) {
@@ -54,8 +54,8 @@ router.post(
 
 router.post(
 "/edit",
-//authWithDiscordId,
-//checkIfAdmin,
+authWithDiscordId,
+checkIfAdmin,
 (req, res, next) => {
     upload.single("Artwork")(req, res, (err) => {
     if (err) {

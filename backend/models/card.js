@@ -39,11 +39,6 @@ const cardSchema = new Schema(
     Num: { type: Number, required: true },
 
     Artwork: { type: artworkSchema, required: true },
-
-    Power: { type: Number, min: 0, max: 5, required: true },
-    Speed: { type: Number, min: 0, max: 5, required: true },
-    Special: { type: Number, min: 0, max: 5, required: true },
-
     SearchID: { type: String, required: true },
   },
   { timestamps: true }

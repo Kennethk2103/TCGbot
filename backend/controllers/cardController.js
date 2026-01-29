@@ -5,7 +5,6 @@ import { DBError } from './controllerUtils.js';
 import AdmZip from "adm-zip";
 import { parse } from "csv-parse/sync"; 
 import * as nextcloud from "../services/nextcloudClient.js"; // uploadBufferAndShare, deleteShare, deleteFile
-import fs from 'fs';
 import mime from "mime-types";
 
 function generateSearchableID(){
@@ -24,9 +23,6 @@ async function internalAddCard(
     Num,
     setRef,
     artworkRef, // <- Nextcloud artwork object
-    Power,
-    Speed,
-    Special,
     session
 ) {
     const validRarities = ["Common", "Rare", "Ultra Rare"];
@@ -43,14 +39,6 @@ async function internalAddCard(
     if (!artworkRef) throw new DBError("No Artwork Was Given", 404);
     if (!artworkRef.ncPath || !artworkRef.shareId || !artworkRef.downloadUrl)
     throw new DBError("Artwork upload did not return required Nextcloud fields", 500);
-
-    if (Power === undefined || Power === null) throw new DBError("No Power Was Given", 404);
-    if (Speed === undefined || Speed === null) throw new DBError("No Speed Was Given", 404);
-    if (Special === undefined || Special === null) throw new DBError("No Special Was Given", 404);
-
-    if (Power < 0 || Power > 5) throw new DBError("Power must be between 0 and 5", 400);
-    if (Speed < 0 || Speed > 5) throw new DBError("Speed must be between 0 and 5", 400);
-    if (Special < 0 || Special > 5) throw new DBError("Special must be between 0 and 5", 400);
 
   // Resolve setRef (optional)
     let setId;
@@ -89,9 +77,6 @@ async function internalAddCard(
             status: "active",
             uploadedAt: new Date(),
         },
-        Power,
-        Speed,
-        Special,
         SearchID: searchID,
     });
 
@@ -117,9 +102,6 @@ Rarity: String enum
 Num: Number 
 setRef: _id (string) OR SetNo (number) (This is optional.  It may be omitted if the card is not part of a set)
 Artwork: file [.jpg, .png, .gif, .webp]
-Power: Number (0-5)
-Speed: Number (0-5)
-Special: Number (0-5)
 */
 export const addCard = async (req, res) => {
     const session = await mongoose.startSession();
@@ -168,9 +150,6 @@ export const addCard = async (req, res) => {
             originalName: artworkOriginalName,
             size: uploadedArtwork.size,
             },
-            body.Power,
-            body.Speed,
-            body.Special,
             session
         );
         });
@@ -218,9 +197,6 @@ Zipfile: zip containing:
 - Num
 - setRef (optional) : SetNo or ObjectId string
 - ArtworkFile (filename under images/)
-- Power (0-5)
-- Speed (0-5)
-- Special (0-5)
 
 2) images/ folder with artwork files matching ArtworkFile
 */
@@ -276,10 +252,6 @@ export const addMany = async (req, res) => {
         const setRef = row.setRef || row.SetRef || null;
         const ArtworkFile = row.ArtworkFile;
 
-        const Power = Number(row.Power);
-        const Speed = Number(row.Speed);
-        const Special = Number(row.Special);
-
         if (!ArtworkFile) throw new DBError(`Row ${idx + 1}: ArtworkFile missing`, 400);
 
         const artwork = images.get(ArtworkFile);
@@ -292,9 +264,6 @@ export const addMany = async (req, res) => {
             Num,
             setRef,
             artwork,
-            Power,
-            Speed,
-            Special,
             rowIndex: idx + 1,
         };
         });
@@ -338,9 +307,6 @@ export const addMany = async (req, res) => {
             item.Num,
             item.setRef,
             item.artworkRef,
-            item.Power,
-            item.Speed,
-            item.Special,
             session
         );
 
@@ -395,9 +361,6 @@ Subtitle: String (optional)
 Rarity: String enum (Common, Rare, Ultra Rare) (optional)
 Num: Number (optional)
 Artwork: file [.jpg, .png, .gif, .webp] (optional)
-Power: Number (0–5) (optional)
-Speed: Number (0–5) (optional)
-Special: Number (0–5) (optional)
 */
 export const editCard = async (req, res) => {
     const session = await mongoose.startSession();
@@ -469,24 +432,6 @@ export const editCard = async (req, res) => {
         }
 
         if (body.Num !== undefined) card.Num = Number(body.Num);
-
-        if (body.Power !== undefined) {
-            const p = Number(body.Power);
-            if (p < 0 || p > 5) throw new DBError("Power must be between 0 and 5", 400);
-            card.Power = p;
-        }
-
-        if (body.Speed !== undefined) {
-            const s = Number(body.Speed);
-            if (s < 0 || s > 5) throw new DBError("Speed must be between 0 and 5", 400);
-            card.Speed = s;
-        }
-
-        if (body.Special !== undefined) {
-            const sp = Number(body.Special);
-            if (sp < 0 || sp > 5) throw new DBError("Special must be between 0 and 5", 400);
-            card.Special = sp;
-        }
 
         // Duplicate check (Set + Num)
         if (card.Set && card.Num !== undefined) {
