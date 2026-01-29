@@ -1,10 +1,11 @@
 import cardModel from '../models/card.js'
 import setModel from '../models/set.js'
 import userModel from '../models/user.js';
-import tradeModel from '../models/trade.js';
 import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
-import { getPackOdds, getPityThreshold } from './packOdds.js';
+import packConfig from "../config/packConfig.json" assert { type: "json" };
+
+const { slotOdds, pityThreshold } = packConfig;
 
 /*
 Expects: Username, DiscordID, Pin
@@ -489,21 +490,19 @@ export const openPack = async(req, res) => {
                 setId = matchset._id
             }
 
-            const packOdds = getPackOdds();
-            const pityTriggered = foundUser.UltraRarePity >= getPityThreshold();
+            const pityTriggered = foundUser.UltraRarePity >= pityThreshold;
             const cardsToGive = [];
 
             let ultraPulled = false;
 
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < slotOdds.length; i++) {
 
                 let rarity;
 
-                if (pityTriggered && i === 4 && !ultraPulled) {
+                if (pityTriggered && i === slotOdds.length - 1 && !ultraPulled) {
                     rarity = "Ultra Rare";
-                    ultraPulled = true;
                 } else {
-                    rarity = rollRarity(packOdds[i]);
+                    rarity = rollRarity(slotOdds[i]);
                 }
 
                 const [card] = await cardModel.aggregate([

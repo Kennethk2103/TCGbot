@@ -1,0 +1,29 @@
+{
+  "pityThreshold": 15,
+  "slotOdds": [
+    [
+      { "rarity": "Common", "chance": 97 },
+      { "rarity": "Rare", "chance": 2 },
+      { "rarity": "Ultra Rare", "chance": 1 }
+    ],
+    [
+      { "rarity": "Common", "chance": 97 },
+      { "rarity": "Rare", "chance": 2 },
+      { "rarity": "Ultra Rare", "chance": 1 }
+    ],
+    [
+      { "rarity": "Common", "chance": 97 },
+      { "rarity": "Rare", "chance": 2 },
+      { "rarity": "Ultra Rare", "chance": 1 }
+    ],
+    [
+      { "rarity": "Common", "chance": 75 },
+      { "rarity": "Rare", "chance": 20 },
+      { "rarity": "Ultra Rare", "chance": 5 }
+    ],
+    [
+      { "rarity": "Rare", "chance": 85 },
+      { "rarity": "Ultra Rare", "chance": 15 }
+    ]
+  ]
+}
