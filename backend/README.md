@@ -2,7 +2,7 @@ TO UPDATE BACKEND
     -cd backend 
     - docker build -t my-discord-bot:latest .
     - docker save -o my-discord-bot.tar my-discord-bot:latest
-    - Move it to the Containers dir 
+    - Move it to the Containers dir (cd to the dir)
     - docker load -i my-discord-bot.tar
     - Start 
 
