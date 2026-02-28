@@ -35,7 +35,6 @@ const uploadMany = multer({
 });
 
 
-//Will Want to do some admin stuff here 
 router.post(
   "/",
   authWithDiscordId,
@@ -69,7 +68,7 @@ checkIfAdmin,
 editCard
 );
 
-router.post("/many", authWithDiscordId, checkIfAdmin, uploadMany.single('Zipfile'), addMany)
+router.post("/many",  uploadMany.single('Zipfile'), addMany)
 router.get("/", getCard)
 router.post("/remove", authWithDiscordId, checkIfAdmin, removeCardFromSet)
 router.delete("/", authWithDiscordId, checkIfAdmin, deleteCard)

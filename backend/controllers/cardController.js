@@ -104,6 +104,7 @@ setRef: _id (string) OR SetNo (number) (This is optional.  It may be omitted if 
 Artwork: file [.jpg, .png, .gif, .webp]
 */
 export const addCard = async (req, res) => {
+    console.log(req.body)
     const session = await mongoose.startSession();
     let uploadedArtwork = null;
 
@@ -249,7 +250,7 @@ export const addMany = async (req, res) => {
         const Subtitle = row.Subtitle;
         const Rarity = row.Rarity;
         const Num = row.Num;
-        const setRef = row.setRef || row.SetRef || null;
+        const SetRef = row.setRef || row.SetRef || null;
         const ArtworkFile = row.ArtworkFile;
 
         if (!ArtworkFile) throw new DBError(`Row ${idx + 1}: ArtworkFile missing`, 400);
@@ -262,7 +263,7 @@ export const addMany = async (req, res) => {
             Subtitle,
             Rarity,
             Num,
-            setRef,
+            SetRef,
             artwork,
             rowIndex: idx + 1,
         };
@@ -305,7 +306,7 @@ export const addMany = async (req, res) => {
             item.Subtitle,
             item.Rarity,
             item.Num,
-            item.setRef,
+            item.SetRef,
             item.artworkRef,
             session
         );

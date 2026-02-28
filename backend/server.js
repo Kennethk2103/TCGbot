@@ -6,7 +6,6 @@ import dotenv from 'dotenv';
 import schedule from 'node-schedule'
 import { giveDailyPack } from "./controllers/userController.js";
 
-dotenv.config({ path: 'config.env' });
 
 const PORT = process.env.PORT || 5050; 
 const app = express(); 
@@ -36,7 +35,7 @@ app.get('/', async (req, res) => {
   res.send('Hello there');
 })
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server listening on port ${PORT}`)
 })
 

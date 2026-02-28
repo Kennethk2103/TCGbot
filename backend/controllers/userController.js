@@ -3,7 +3,7 @@ import setModel from '../models/set.js'
 import userModel from '../models/user.js';
 import mongoose from 'mongoose';
 import { DBError } from './controllerUtils.js';
-import packConfig from "../config/packConfig.json" assert { type: "json" };
+import packConfig from "../config/configWrapper.js";
 
 const { slotOdds, pityThreshold } = packConfig;
 

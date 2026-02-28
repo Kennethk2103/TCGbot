@@ -9,6 +9,7 @@ Expects:
 - SetNo
 */ 
 export const addEmptySet = async (req, res) => {
+    console.log(req.body);
     const session = await mongoose.startSession();
 
     try {

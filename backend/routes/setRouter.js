@@ -11,7 +11,8 @@ router.use(bodyParser.json());
 
 router.use(bodyParser.json());
 
-router.post("/", authWithDiscordId, checkIfAdmin, addEmptySet)
+//authWithDiscordId, checkIfAdmin,
+router.post("/",  addEmptySet)
 router.get("/", getSet)
 router.get("/all", getAllSets)
 router.post("/edit", authWithDiscordId, checkIfAdmin, editSet)

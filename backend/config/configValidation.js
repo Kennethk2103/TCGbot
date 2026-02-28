@@ -1,7 +1,8 @@
-import packConfig from "./packConfig.json" assert { type: "json" };
+import packConfig from "./configWrapper.js";
 
 function validatePackConfig({ slotOdds, pityThreshold }) {
-    console.log("Validating Config files");
+    console.log("Validating config files");
+
     if (!Array.isArray(slotOdds)) {
         throw new Error("slotOdds must be an array");
     }
@@ -16,6 +17,7 @@ function validatePackConfig({ slotOdds, pityThreshold }) {
     if (typeof pityThreshold !== "number" || pityThreshold < 0) {
         throw new Error("Invalid pityThreshold");
     }
+
     console.log("Config files validated successfully");
 }
 
