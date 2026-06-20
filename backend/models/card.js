@@ -38,6 +38,10 @@ const cardSchema = new Schema(
     Set: { type: mongoose.Schema.Types.ObjectId, ref: "Set" },
     Num: { type: Number, required: true },
 
+    Power: { type: Number },
+    Speed: { type: Number },
+    Special: { type: Number },
+
     Artwork: { type: artworkSchema, required: true },
     SearchID: { type: String, required: true },
   },

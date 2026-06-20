@@ -68,7 +68,9 @@ checkIfAdmin,
 editCard
 );
 
-router.post("/many",  uploadMany.single('Zipfile'), addMany)
+// uploadMany runs first so req.body.callerID (a text field in the multipart form)
+// is populated before authWithDiscordId reads it; checkIfAdmin then gates to admins.
+router.post("/many", uploadMany.single('Zipfile'), authWithDiscordId, checkIfAdmin, addMany)
 router.get("/", getCard)
 router.post("/remove", authWithDiscordId, checkIfAdmin, removeCardFromSet)
 router.delete("/", authWithDiscordId, checkIfAdmin, deleteCard)

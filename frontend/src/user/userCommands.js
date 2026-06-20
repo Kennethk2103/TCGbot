@@ -105,39 +105,83 @@ async function openPack (interaction) {
         const userId = interaction.user.id;
         const set = interaction.options.getNumber('set');
 
+        // Fetching each card's data + having Discord render artwork can exceed the 3s
+        // reply window, so defer up front and edit the reply once everything is ready.
+        await interaction.deferReply();
+
         const response = await axios.post(`${backendUrl}/user/open`, { DiscordID: userId, setNo: set });
-            console.log("Pack opened successfully:", response.data);
+        console.log("Pack opened successfully:", response.data);
 
-        const openCardArray = []
-        if (response.data.cards && Array.isArray(response.data.cards)) {
-            
-            const openedCardsIDArray = response.data.cards;
-
-            for (const cardId of openedCardsIDArray) {
-                const cardResponse = await axios.get(`${backendUrl}/card/`, { params: { ID: cardId } });
-                if(cardResponse.data.count < 1){
-                    console.warn(`Card with ID ${cardId} not found or has no cards.`);
-                    continue; // Skip if no cards found
-                }
-                console.log("Card data fetched: ", cardResponse.data);
-                const cardData = cardResponse.data.cards[0];
-                openCardArray.push(`Card Name: ${cardData.Name}, Rarity: ${cardData.Rarity}, Num : ${cardData.Num}, Power: ${cardData.Power}, Speed: ${cardData.Speed}, Special: ${cardData.Special}, ID: ${cardData.SearchID}`);
-            }
-            
-        } else {
+        if (!response.data.cards || !Array.isArray(response.data.cards)) {
             throw new Error("No cards received from the backend.");
-
         }
-        const textoutput = "" + openCardArray.join("\n") || "No cards opened."
-        // const textOutput = new TextDisplayBuilder().setContent(openCardArray.join("\n") || "No cards opened.")
-        await interaction.reply(textoutput);
+
+        const openedCardsIDArray = response.data.cards;
+        const cards = []; // { embed, file } per opened card, kept index-aligned
+
+        for (const cardId of openedCardsIDArray) {
+            const cardResponse = await axios.get(`${backendUrl}/card/`, { params: { ID: cardId } });
+            if(cardResponse.data.count < 1){
+                console.warn(`Card with ID ${cardId} not found or has no cards.`);
+                continue; // Skip if no cards found
+            }
+            console.log("Card data fetched: ", cardResponse.data);
+            const cardData = cardResponse.data.cards[0];
+
+            const details = `Rarity: ${cardData.Rarity}, Num : ${cardData.Num}, Power: ${cardData.Power}, Speed: ${cardData.Speed}, Special: ${cardData.Special}, ID: ${cardData.SearchID}`;
+
+            const embed = new EmbedBuilder()
+                .setTitle(cardData.Name)
+                .setDescription(details);
+
+            // Artwork lives on Nextcloud (see backend/models/card.js). We fetch the file and
+            // send it as a real attachment rather than embed.setImage(url): Discord renders
+            // GIFs in rich-embed images as a STATIC first frame, but an inline attachment
+            // animates. Not referencing it in the embed keeps it as a standalone inline image.
+            let file;
+            if (cardData.Artwork?.downloadUrl) {
+                const artResp = await axios.get(cardData.Artwork.downloadUrl, { responseType: 'arraybuffer' });
+                const ext = (cardData.Artwork.contentType && cardData.Artwork.contentType.split('/')[1]) || 'png';
+                file = new AttachmentBuilder(Buffer.from(artResp.data), { name: `${cardData.Name}.${ext}` });
+            }
+
+            cards.push({ embed, file });
+        }
+
+        if (cards.length === 0) {
+            await interaction.editReply("No cards opened.");
+            return;
+        }
+
+        // Send all cards in a single message (stats stacked, animated images in a gallery
+        // below). Discord caps a message at 10 embeds and 10 attachments, so chunk by 10 in
+        // the rare case a pack is larger; a normal pack is one message.
+        const PER_MESSAGE = 10;
+        for (let i = 0; i < cards.length; i += PER_MESSAGE) {
+            const chunk = cards.slice(i, i + PER_MESSAGE);
+            const embeds = chunk.map(c => c.embed);
+            const files = chunk.map(c => c.file).filter(Boolean);
+            if (i === 0) {
+                await interaction.editReply({ content: "You opened a pack!", embeds, files });
+            } else {
+                await interaction.followUp({ embeds, files });
+            }
+        }
 
     }
     catch (error) {
         console.error("Error opening pack:", error);
-        await interaction.reply("An error occurred while opening the pack. " + (error.response?.data?.message ? `Details: ${error.response.data.message}` : "Please try again later."));
+        const backendMsg = error.response?.data?.message || "";
+        const message = /no packs/i.test(backendMsg)
+            ? "You have no packs to open!"
+            : "An error occurred while opening the pack. " + (backendMsg ? `Details: ${backendMsg}` : "Please try again later.");
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(message);
+        } else {
+            await interaction.reply(message);
+        }
     }
-    
+
 }
 commandMap.set(openPackSlash.name, openPack);
 commandsUser.push(openPackSlash);

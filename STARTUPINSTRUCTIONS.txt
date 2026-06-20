@@ -1,0 +1,192 @@
+TCGbot Startup Instructions
+============================
+How to move this bot to another machine and run it in a new Discord server.
+
+
+PREREQUISITES
+-------------
+Install these on the new machine:
+  - Node.js 18 or later          (https://nodejs.org)
+  - Docker Desktop (or Docker Engine + Docker Compose)
+  - Git (to clone the repo)
+
+
+STEP 1: CLONE THE REPO
+-----------------------
+  git clone <your-repo-url>
+  cd TCGbot
+
+
+STEP 2: CREATE A DISCORD BOT APPLICATION
+-----------------------------------------
+1. Go to https://discord.com/developers/applications
+2. Click "New Application", give it a name.
+3. Go to the "Bot" tab:
+   - Click "Reset Token" and copy the token. You will need this below.
+   - Enable these Privileged Gateway Intents:
+       * Server Members Intent
+       * Message Content Intent
+4. Go to the "OAuth2" tab:
+   - Under "OAuth2 URL Generator", check the "bot" and "applications.commands" scopes.
+   - Under "Bot Permissions", check "Administrator" (or the specific permissions you need).
+   - Copy the generated URL, paste it in your browser, and invite the bot to your server.
+5. Note down:
+   - Application (Client) ID   (from the "General Information" tab)
+   - Bot Token                  (from the "Bot" tab)
+   - Server (Guild) ID          (right-click your server in Discord with Developer Mode on)
+
+
+STEP 3: SET UP NEXTCLOUD (IMAGE STORAGE)
+-----------------------------------------
+The bot stores card artwork on a Nextcloud server via WebDAV.
+
+1. On your Nextcloud instance, create a user for the bot (e.g. "DiscordBot").
+2. Generate an App Password for that user:
+   Settings > Security > Devices & sessions > Create new app password
+3. Create a folder for uploads (e.g. /DiscordUploads).
+4. Note down:
+   - Nextcloud base URL       (e.g. https://your-nextcloud.example.com)
+   - Nextcloud username        (e.g. DiscordBot)
+   - Nextcloud app password
+   - Upload directory          (e.g. /DiscordUploads)
+
+
+STEP 4: CREATE CONFIG FILES
+----------------------------
+These files contain secrets and are NOT checked into git. You must create them manually.
+
+A) Backend config — create file: Containers/config.env
+
+    MONGO_URI=mongodb://host.docker.internal:27017/?replicaSet=rs0
+    PORT=5050
+    NEXTCLOUD_BASE_URL=https://your-nextcloud.example.com
+    NEXTCLOUD_USER=DiscordBot
+    NEXTCLOUD_APP_PASSWORD=your-app-password-here
+    NEXTCLOUD_UPLOAD_DIR=/DiscordUploads
+
+B) Frontend config — create file: frontend/config.env
+
+    CLIENT_ID=your-discord-client-id
+    token_discord=your-discord-bot-token
+    SERVER_ID=your-discord-server-id
+    backendURL=http://localhost:5050
+
+
+STEP 5: BUILD THE BACKEND DOCKER IMAGE
+---------------------------------------
+From the project root:
+
+    cd backend
+    docker build -t my-discord-bot:latest .
+    cd ..
+
+
+STEP 6: START THE BACKEND + DATABASE
+--------------------------------------
+    cd Containers
+    docker compose up -d
+    cd ..
+
+This starts:
+  - MongoDB (with replica set "rs0", auto-initialized via healthcheck)
+  - The backend API server on port 5050
+
+Wait a few seconds for Mongo to become healthy. You can check with:
+
+    docker compose -f Containers/docker-compose.yml ps
+
+Both containers should show "running" and mongo should show "(healthy)".
+
+
+STEP 7: INSTALL FRONTEND DEPENDENCIES
+--------------------------------------
+    cd frontend
+    npm install
+    cd ..
+
+
+STEP 8: REGISTER SLASH COMMANDS
+---------------------------------
+This pushes all bot commands to Discord for your server. You only need to do
+this once (and again whenever command definitions change).
+
+    cd frontend/src
+    node register-commands.js
+    cd ../..
+
+You should see "Slash commands were registered successfully!"
+
+
+STEP 9: START THE BOT
+----------------------
+    cd frontend/src
+    node index.js
+
+You should see "Bot is online". The bot will now respond to slash commands in
+your Discord server.
+
+To run it in the background (Linux/Mac):
+    nohup node index.js &
+
+On Windows you can use a separate terminal, or a process manager like PM2:
+    npm install -g pm2
+    pm2 start index.js --name tcgbot
+
+
+VERIFYING EVERYTHING WORKS
+---------------------------
+1. In Discord, type /ping — the bot should respond.
+2. Use /addcard to add a test card (requires admin).
+3. Use /view-card to verify artwork loads from Nextcloud.
+
+
+COMMON ISSUES
+--------------
+Problem: Mongo won't elect a primary / "ReplicaSetNoPrimary" error
+  - Make sure the extra_hosts line in docker-compose.yml has:
+      "host.docker.internal:127.0.0.1"
+  - If Mongo data is corrupted, reset volumes:
+      docker compose down
+      docker volume rm containers_mongo1_data containers_mongo1_config
+      docker compose up -d
+
+Problem: Bot commands don't appear in Discord
+  - Re-run: cd frontend/src && node register-commands.js
+  - Commands can take up to an hour to propagate (guild commands are usually instant).
+
+Problem: "Unknown interaction" errors / commands time out
+  - The backend or Nextcloud may be slow. Most commands use deferReply() to
+    handle this, but check that both services are responsive.
+
+Problem: Nextcloud 502 / artwork won't upload
+  - Verify your Nextcloud server is running and reachable from the bot machine.
+  - Verify the app password and upload directory are correct in Containers/config.env.
+
+Problem: GIFs don't animate
+  - This is by design. Card artwork is sent as file attachments (not embed images)
+    specifically so that GIFs animate. If you see static GIFs, check that the
+    bot code is using AttachmentBuilder, not EmbedBuilder.setImage().
+
+
+PROJECT STRUCTURE
+------------------
+TCGbot/
+  backend/               Backend API (Express + Mongoose)
+    controllers/          Route handlers
+    models/               Mongoose schemas (Card, Set, User)
+    services/             Nextcloud client
+    routes/               Express route definitions
+    Dockerfile            Builds the my-discord-bot:latest image
+    server.js             Entry point
+
+  frontend/              Discord bot (discord.js)
+    src/
+      index.js            Bot entry point
+      register-commands.js  Push slash commands to Discord
+      admin/              Admin-only commands (addcard, editcard, etc.)
+      user/               User commands (open-pack, view-card, etc.)
+    config.env            Discord credentials (NOT in git)
+
+  Containers/
+    docker-compose.yml    Runs backend + MongoDB
+    config.env            Backend secrets (NOT in git)

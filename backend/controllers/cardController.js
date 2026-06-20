@@ -23,9 +23,12 @@ async function internalAddCard(
     Num,
     setRef,
     artworkRef, // <- Nextcloud artwork object
+    stats,      // <- { Power, Speed, Special }, all optional (strings or numbers)
     session
 ) {
     const validRarities = ["Common", "Rare", "Ultra Rare"];
+    // Coerce stat values to numbers; treat blank/missing as omitted.
+    const toNum = (v) => (v === undefined || v === null || v === "" ? undefined : Number(v));
 
     if (!Name) throw new DBError("No Name Was Given", 404);
     if (!Subtitle) throw new DBError("No Subtitle Was Given", 404);
@@ -66,6 +69,9 @@ async function internalAddCard(
         Rarity,
         Set: setId,
         Num,
+        Power: toNum(stats?.Power),
+        Speed: toNum(stats?.Speed),
+        Special: toNum(stats?.Special),
         Artwork: {
             ncPath: artworkRef.ncPath,
             shareId: artworkRef.shareId,
@@ -147,10 +153,11 @@ export const addCard = async (req, res) => {
             shareId: uploadedArtwork.shareId,
             shareUrl: uploadedArtwork.shareUrl,
             downloadUrl: uploadedArtwork.downloadUrl,
-            contentType: uploadedArtwork.mimeType, 
+            contentType: uploadedArtwork.mimeType,
             originalName: artworkOriginalName,
             size: uploadedArtwork.size,
             },
+            { Power: body.Power, Speed: body.Speed, Special: body.Special },
             session
         );
         });
@@ -264,6 +271,9 @@ export const addMany = async (req, res) => {
             Rarity,
             Num,
             SetRef,
+            Power: row.Power,
+            Speed: row.Speed,
+            Special: row.Special,
             artwork,
             rowIndex: idx + 1,
         };
@@ -308,6 +318,7 @@ export const addMany = async (req, res) => {
             item.Num,
             item.SetRef,
             item.artworkRef,
+            { Power: item.Power, Speed: item.Speed, Special: item.Special },
             session
         );
 
@@ -377,12 +388,19 @@ export const editCard = async (req, res) => {
         const body = req.body || {};
         if (!body.ID) throw new DBError("No Card ID given!", 404);
 
-        // If a new file was sent, upload it to Nextcloud first
-        if (req.file) {
+        // New artwork can arrive either as a multipart file (req.file) or as base64 JSON
+        // (body.Artwork.data), mirroring the addCard flow. originalName carries the file
+        // extension so Nextcloud derives a valid image mime type.
+        const newArtworkBuffer =
+            req.file?.buffer || (body.Artwork?.data ? Buffer.from(body.Artwork.data, "base64") : null);
+        const newArtworkOriginalName =
+            req.file?.originalname || body.Artwork?.originalName || "artwork";
+
+        if (newArtworkBuffer) {
         newArtworkUpload = await nextcloud.uploadBufferAndShare({
-            buffer: req.file.buffer,
-            originalName: req.file.originalname,
-            folder: "", 
+            buffer: newArtworkBuffer,
+            originalName: newArtworkOriginalName,
+            folder: "",
         });
 
         if (!newArtworkUpload?.shareId || !newArtworkUpload?.ncPath || !newArtworkUpload?.downloadUrl) {
@@ -413,9 +431,9 @@ export const editCard = async (req, res) => {
             shareId: newArtworkUpload.shareId,
             shareUrl: newArtworkUpload.shareUrl,
             downloadUrl: newArtworkUpload.downloadUrl,
-            contentType: newArtworkUpload.mimeType ?? req.file.mimetype,
-            originalName: req.file.originalname,
-            size: newArtworkUpload.size ?? req.file.size,
+            contentType: newArtworkUpload.mimeType,
+            originalName: newArtworkOriginalName,
+            size: newArtworkUpload.size ?? newArtworkBuffer.length,
             status: "active",
             uploadedAt: new Date(),
             };
@@ -433,6 +451,26 @@ export const editCard = async (req, res) => {
         }
 
         if (body.Num !== undefined) card.Num = Number(body.Num);
+
+        if (body.Power !== undefined) card.Power = Number(body.Power);
+        if (body.Speed !== undefined) card.Speed = Number(body.Speed);
+        if (body.Special !== undefined) card.Special = Number(body.Special);
+
+        if (body.SetRef !== undefined) {
+            const setRef = body.SetRef?.trim() || null;
+            if (setRef) {
+                let set = null;
+                if (mongoose.Types.ObjectId.isValid(setRef)) {
+                    set = await setModel.findById(setRef).session(session);
+                } else if (!isNaN(setRef)) {
+                    set = await setModel.findOne({ SetNo: Number(setRef) }).session(session);
+                }
+                if (!set) throw new DBError(`Set "${setRef}" not found`, 404);
+                card.Set = set._id;
+            } else {
+                card.Set = null;
+            }
+        }
 
         // Duplicate check (Set + Num)
         if (card.Set && card.Num !== undefined) {
@@ -725,13 +763,12 @@ export const getAllCards = async (req, res) => {
             return allCards
         })
         session.endSession()
-        const cardResponses = cards.map((card) => ({
-            ...card.toObject(),
-            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
-        }));
+        // Artwork is now a Nextcloud reference object (see models/card.js artworkSchema),
+        // so we return the card as-is. Consumers use Artwork.downloadUrl for the image link
+        // instead of an inlined base64 data URI.
         return res.status(200).json({
-            count: cardResponses.length,
-            cards: cardResponses
+            count: cards.length,
+            cards: cards.map((card) => card.toObject())
         });
     } catch (error) {
         const code = error instanceof DBError ? error.statusCode : 500;

@@ -26,10 +26,12 @@ const viewCardSlash = {
 async function viewCard (interaction) {// DONE
     const cardNum = interaction.options.getInteger('cardid');
 
+    // Fetching the card + downloading its artwork can exceed Discord's 3s window, so defer.
+    await interaction.deferReply({ ephemeral: true });
+
     try {
         const response = await axios.get(`${backendUrl}/card/discordCard/`, { params: { ID: cardNum} });
         const artwork = response.data.Artwork;
-        const backside = response.data.Backside;
         const Name = response.data.Name;
         const Rarity = response.data.Rarity;
         const setNum = response.data.SetNo;
@@ -41,40 +43,31 @@ async function viewCard (interaction) {// DONE
         const speed = response.data.Speed;
         const special = response.data.Special;
         const cardDetails = `\`\`Card Name: ${Name}\nID: ${id}\nRarity: ${Rarity}\nSet Number: ${setNum}\nCard Number: ${Num}\nArtist: ${artist}\nSubtitle: ${subtitle}\nPower: ${power}\nSpeed: ${speed}\nSpecial: ${special}\n\`\``;
-        const text = new TextDisplayBuilder().setContent(cardDetails)
-        //check if the directory exists, if not create it
-        if (!fs.existsSync('./temp')) {
-            fs.mkdirSync('./temp');
+
+        const embed = new EmbedBuilder()
+            .setTitle(Name)
+            .setDescription(cardDetails);
+
+        // Artwork lives on Nextcloud (see backend/models/card.js). We fetch the file and
+        // send it as a real attachment rather than embed.setImage(url): Discord renders
+        // GIFs in rich-embed images as a STATIC first frame, but an inline attachment
+        // animates. The attachment is intentionally NOT referenced by the embed so it
+        // renders/animates as a standalone inline image beneath the stats.
+        const files = [];
+        if (artwork?.downloadUrl) {
+            const artResp = await axios.get(artwork.downloadUrl, { responseType: 'arraybuffer' });
+            const ext = (artwork.contentType && artwork.contentType.split('/')[1]) || 'png';
+            files.push(new AttachmentBuilder(Buffer.from(artResp.data), { name: `${Name}.${ext}` }));
         }
 
-        //GET TYPE OF IMAGE
-        const imageTypeFront = artwork.contentType;
-        //generate image from base 64 buffer
-        const imageBufferFront = Buffer.from(artwork.data, 'base64');
-        //save the image to a temp file
-        fs.writeFileSync(`./temp/${Name}.${imageTypeFront.split("/")[1]}`, imageBufferFront);
-
-        const imageTypeBack = backside.contentType;
-        //generate image from base 64 buffer
-        const imageBufferBack = Buffer.from(backside.data, 'base64');
-        //save the image to a temp file
-        fs.writeFileSync(`./temp/${Name}_back.${imageTypeBack.split("/")[1]}`, imageBufferBack);    
-
-        await interaction.reply({
-            content: cardDetails,
-            files : [`./temp/${Name}.${imageTypeFront.split("/")[1]}`, `./temp/${Name}_back.${imageTypeBack.split("/")[1]}`],
-            ephemeral: true
+        await interaction.editReply({
+            embeds: [embed],
+            files
         });
-
-        // Clean up the temporary file after sending the reply
-        setTimeout(() => {
-            fs.unlinkSync(`./temp/${Name}.${imageTypeFront.split("/")[1]}`);
-            fs.unlinkSync(`./temp/${Name}_back.${imageTypeBack.split("/")[1]}`);
-        }, 5000); // Adjust the timeout as needed
 
     } catch (error) {
         console.error("Error fetching card details:", error);
-        await interaction.reply("An error occurred while fetching the card details. Please try again later.");
+        await interaction.editReply("An error occurred while fetching the card details. Please try again later.");
     }
 
 }
