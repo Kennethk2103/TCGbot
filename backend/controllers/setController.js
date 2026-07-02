@@ -125,17 +125,12 @@ export const getSet = async (req, res) => {
 
         session.endSession();
 
-        const cardResponses = foundSet.cards.map(card => ({
-            ...card.toObject(),
-            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
-        }));
-
         return res.status(200).json({
             setId: foundSet._id,
             Name: foundSet.Name,
             SetNo: foundSet.SetNo,
             count: foundSet.cards.length,
-            cards: cardResponses
+            cards: foundSet.cards.map(card => card.toObject())
         });
 
     } catch (error) {
@@ -155,20 +150,13 @@ export const getAllSets = async (req, res) => {
 
         session.endSession();
 
-        const setsResponse = sets.map(set => {
-            const cards = set.cards.map(card => ({
-                ...card.toObject(),
-                Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
-            }));
-
-            return {
-                setId: set._id,
-                Name: set.Name,
-                SetNo: set.SetNo,
-                count: set.cards.length,
-                cards: cards
-            };
-        });
+        const setsResponse = sets.map(set => ({
+            setId: set._id,
+            Name: set.Name,
+            SetNo: set.SetNo,
+            count: set.cards.length,
+            cards: set.cards.map(card => card.toObject())
+        }));
 
         return res.status(200).json(setsResponse);
 
@@ -263,13 +251,9 @@ export const getAllCardsNotInSet = async(req, res) => {
             return allCards
         })
         session.endSession()
-        const cardResponses = cards.map((card) => ({
-            ...card.toObject(),
-            Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
-        }));
         return res.status(200).json({
-            count: cardResponses.length,
-            cards: cardResponses
+            count: cards.length,
+            cards: cards.map(card => card.toObject())
         });
     } catch (error) {
         const code = error instanceof DBError ? error.statusCode : 500;

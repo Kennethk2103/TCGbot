@@ -341,13 +341,10 @@ export const getUserCards = async (req, res) => {
 
         const quantityMap = new Map(userCards.map(c => [c.card.toString(), c.quantity]));
 
-        const cardResponses = cards.map(card => {
-            return {
-                ...card.toObject(),
-                quantity: quantityMap.get(card._id.toString()) || 0,
-                Artwork: `data:${card.Artwork.contentType};base64,${card.Artwork.data.toString('base64')}`
-            };
-        });
+        const cardResponses = cards.map(card => ({
+            ...card.toObject(),
+            quantity: quantityMap.get(card._id.toString()) || 0,
+        }));
 
         session.endSession();
 
