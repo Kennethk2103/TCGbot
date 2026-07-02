@@ -238,6 +238,51 @@ async function makePin(interaction) {
 commandMap.set(makePinSlash.name, makePin);
 commandsUser.push(makePinSlash);
 
+const helpSlash = {
+    name: "help",
+    description: "List all available commands",
+    options: [],
+};
+async function help(interaction) {
+    const embed = new EmbedBuilder()
+        .setTitle("Available Commands")
+        .setDescription("Here are all the commands you can use:")
+        .addFields(
+            {
+                name: "Account",
+                value: [
+                    "`/initalieze-account <pin>` — Create your account to start collecting cards",
+                    "`/makepin <pin>` — Set or update your account PIN",
+                ].join("\n"),
+            },
+            {
+                name: "Cards",
+                value: [
+                    "`/view-card [name] [cardid]` — View a card from your inventory by name or ID",
+                    "`/list-cards` — List all cards you own with their IDs and quantities",
+                ].join("\n"),
+            },
+            {
+                name: "Packs & Sets",
+                value: [
+                    "`/open-pack <set>` — Open a card pack from the given set number",
+                    "`/get-all-sets` — Browse all available card sets and their cards",
+                ].join("\n"),
+            },
+            {
+                name: "Trading",
+                value: [
+                    "`/make-trade-request <user>` — Start a trade with another user",
+                    "`/view-trade-requests` — View and manage your pending trade requests",
+                ].join("\n"),
+            }
+        );
+
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+commandMap.set(helpSlash.name, help);
+commandsUser.push(helpSlash);
+
 module.exports = {
     commandsUser,
     commandUserMap: commandMap
