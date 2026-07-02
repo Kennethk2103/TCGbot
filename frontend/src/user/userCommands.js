@@ -14,7 +14,7 @@ const commandsUser = []
 const commandMap = new Map();
 
 const initaliezeAccountSlash= {
-    name:"initalieze-account",
+    name:"init-account",
     description: "Create your account to start collecting cards!",
     options: [
         {
@@ -251,7 +251,7 @@ async function help(interaction) {
             {
                 name: "Account",
                 value: [
-                    "`/initalieze-account <pin>` — Create your account to start collecting cards",
+                    "`/init-account <pin>` — Create your account to start collecting cards",
                     "`/makepin <pin>` — Set or update your account PIN",
                 ].join("\n"),
             },

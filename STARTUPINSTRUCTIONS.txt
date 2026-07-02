@@ -19,7 +19,7 @@ STEP 1: CLONE THE REPO
 
 STEP 2: CREATE A DISCORD BOT APPLICATION
 -----------------------------------------
-1. Go to https://discord.com/developers/applications
+1. Go to https://discord.com/developers/applications 
 2. Click "New Application", give it a name.
 3. Go to the "Bot" tab:
    - Click "Reset Token" and copy the token. You will need this below.
@@ -32,8 +32,8 @@ STEP 2: CREATE A DISCORD BOT APPLICATION
    - Copy the generated URL, paste it in your browser, and invite the bot to your server.
 5. Note down:
    - Application (Client) ID   (from the "General Information" tab)
-   - Bot Token                  (from the "Bot" tab)
-   - Server (Guild) ID          (right-click your server in Discord with Developer Mode on)
+   - Bot Token                  (from the "Bot" tab) 
+   - Server (Guild) ID          (right-click your server in Discord with Developer Mode on) 
 
 
 STEP 3: SET UP NEXTCLOUD (IMAGE STORAGE)
