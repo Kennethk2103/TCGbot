@@ -60,30 +60,47 @@ const listCardsSlash= {
     options: [
     ],
 }
-async function listCards (interaction) {
-
+async function listCards(interaction) {
     const userId = interaction.user.id;
-    try{
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
         const userResponse = await axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: userId } });
-        let userCards = userResponse.data.cards;
-        console.log("User cards fetched: ", userCards);
-        let outputList = "";
+        const userCards = userResponse.data.cards;
+
         if (!userCards || userCards.length === 0) {
-            return await interaction.reply({content:"You do not own any cards yet.", ephemeral: true});
+            return interaction.editReply("You do not own any cards yet.");
         }
-        userCards.forEach(card => {
-            outputList += `Card Name: ${card.Name}, Rarity: ${card.Rarity}, Quantity: ${card.quantity}\n`;
-        });
 
-        return await interaction.reply({ content: outputList, ephemeral: true });
+        // Build lines and chunk into <=2000-char messages to stay under Discord's limit.
+        const lines = userCards.map(card =>
+            `**${card.Name}** (${card.Rarity}) — ID: ${card.SearchID} | Qty: ${card.quantity}`
+        );
 
+        const chunks = [];
+        let current = '';
+        for (const line of lines) {
+            if (current.length + line.length + 1 > 1900) {
+                chunks.push(current);
+                current = '';
+            }
+            current += (current ? '\n' : '') + line;
+        }
+        if (current) chunks.push(current);
 
-    }catch(error){
-        console.error("Error fetching user cards: ", error);
-        await interaction.reply("Error fetching user cards. Please try again later.");
-        return;
+        await interaction.editReply({ content: chunks[0] });
+        for (let i = 1; i < chunks.length; i++) {
+            await interaction.followUp({ content: chunks[i], ephemeral: true });
+        }
+
+    } catch (error) {
+        console.error("Error fetching user cards:", error);
+        const msg = error.response?.data?.message
+            ? `Error fetching cards: ${error.response.data.message}`
+            : "An error occurred while fetching your cards. Please try again later.";
+        await interaction.editReply(msg);
     }
-    
 }
 commandMap.set(listCardsSlash.name, listCards);
 commandsUser.push(listCardsSlash);

@@ -13,63 +13,92 @@ const commandMap = new Map();
 
 const viewCardSlash = {
     name: "view-card",
-    description: "View details of a specific card by its ID",
+    description: "View a card from your inventory by ID or name",
     options: [
         {
+            name: 'name',
+            description: 'The name of the card (case insensitive, shows all matches)',
+            type: ApplicationCommandOptionType.String,
+            required: false,
+        },
+        {
             name: 'cardid',
-            description: 'The ID of the card you want to view',
+            description: 'The SearchID of the card',
             type: ApplicationCommandOptionType.Integer,
-            required: true,
+            required: false,
         }
     ],
 }
-async function viewCard (interaction) {// DONE
-    const cardNum = interaction.options.getInteger('cardid');
+async function viewCard(interaction) {
+    const cardId = interaction.options.getInteger('cardid');
+    const cardName = interaction.options.getString('name');
 
-    // Fetching the card + downloading its artwork can exceed Discord's 3s window, so defer.
+    if (!cardId && !cardName) {
+        return interaction.reply({ content: "Please provide either a card name or a card ID.", ephemeral: true });
+    }
+
     await interaction.deferReply({ ephemeral: true });
 
     try {
-        const response = await axios.get(`${backendUrl}/card/discordCard/`, { params: { ID: cardNum} });
-        const artwork = response.data.Artwork;
-        const Name = response.data.Name;
-        const Rarity = response.data.Rarity;
-        const setNum = response.data.SetNo;
-        const Num = response.data.Num;
-        const artist = response.data.Artist;
-        const subtitle = response.data.Subtitle;
-        const id = response.data.SearchID;
-        const power = response.data.Power;
-        const speed = response.data.Speed;
-        const special = response.data.Special;
-        const cardDetails = `\`\`Card Name: ${Name}\nID: ${id}\nRarity: ${Rarity}\nSet Number: ${setNum}\nCard Number: ${Num}\nArtist: ${artist}\nSubtitle: ${subtitle}\nPower: ${power}\nSpeed: ${speed}\nSpecial: ${special}\n\`\``;
+        // Fetch caller's inventory — filters to owned cards and gives us quantity.
+        const inventoryResp = await axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: interaction.user.id } });
+        const userCards = inventoryResp.data.cards || [];
 
-        const embed = new EmbedBuilder()
-            .setTitle(Name)
-            .setDescription(cardDetails);
-
-        // Artwork lives on Nextcloud (see backend/models/card.js). We fetch the file and
-        // send it as a real attachment rather than embed.setImage(url): Discord renders
-        // GIFs in rich-embed images as a STATIC first frame, but an inline attachment
-        // animates. The attachment is intentionally NOT referenced by the embed so it
-        // renders/animates as a standalone inline image beneath the stats.
-        const files = [];
-        if (artwork?.downloadUrl) {
-            const artResp = await axios.get(artwork.downloadUrl, { responseType: 'arraybuffer' });
-            const ext = (artwork.contentType && artwork.contentType.split('/')[1]) || 'png';
-            files.push(new AttachmentBuilder(Buffer.from(artResp.data), { name: `${Name}.${ext}` }));
+        let matches;
+        if (cardName) {
+            const needle = cardName.toLowerCase();
+            matches = userCards.filter(c => c.Name.toLowerCase().includes(needle));
+        } else {
+            matches = userCards.filter(c => String(c.SearchID) === String(cardId));
         }
 
-        await interaction.editReply({
-            embeds: [embed],
-            files
-        });
+        if (matches.length === 0) {
+            return interaction.editReply({
+                content: cardName
+                    ? `You don't own any cards named "${cardName}".`
+                    : "You don't own a card with that ID."
+            });
+        }
+
+        const cards = [];
+        for (const cardData of matches) {
+            const details = [
+                `**Subtitle:** ${cardData.Subtitle || '—'}`,
+                `**Rarity:** ${cardData.Rarity}`,
+                `**ID:** ${cardData.SearchID}  |  **Num:** ${cardData.Num}`,
+                `**Power:** ${cardData.Power ?? '—'}  |  **Speed:** ${cardData.Speed ?? '—'}  |  **Special:** ${cardData.Special ?? '—'}`,
+                `**Owned:** ${cardData.quantity}`,
+            ].join('\n');
+
+            const embed = new EmbedBuilder()
+                .setTitle(cardData.Name)
+                .setDescription(details);
+
+            let file;
+            if (cardData.Artwork?.downloadUrl) {
+                const artResp = await axios.get(cardData.Artwork.downloadUrl, { responseType: 'arraybuffer' });
+                const ext = (cardData.Artwork.contentType && cardData.Artwork.contentType.split('/')[1]) || 'png';
+                file = new AttachmentBuilder(Buffer.from(artResp.data), { name: `${cardData.Name}.${ext}` });
+            }
+            cards.push({ embed, file });
+        }
+
+        const PER_MESSAGE = 10;
+        for (let i = 0; i < cards.length; i += PER_MESSAGE) {
+            const chunk = cards.slice(i, i + PER_MESSAGE);
+            const embeds = chunk.map(c => c.embed);
+            const files = chunk.map(c => c.file).filter(Boolean);
+            if (i === 0) {
+                await interaction.editReply({ embeds, files });
+            } else {
+                await interaction.followUp({ embeds, files, ephemeral: true });
+            }
+        }
 
     } catch (error) {
         console.error("Error fetching card details:", error);
         await interaction.editReply("An error occurred while fetching the card details. Please try again later.");
     }
-
 }
 
 commandMap.set(viewCardSlash.name, viewCard);
