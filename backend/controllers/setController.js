@@ -90,7 +90,7 @@ export const deleteSet = async (req, res) => {
 
             if (!set) throw new DBError("Set Not Found", 404);
 
-            await cardModel.dele/eMany({ Set: set._id }).session(session);
+            await cardModel.deleteMany({ Set: set._id }).session(session);
             await setModel.deleteOne({ _id: set._id }).session(session);
         });
 
