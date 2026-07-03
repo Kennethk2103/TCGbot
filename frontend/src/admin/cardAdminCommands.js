@@ -414,6 +414,82 @@ async function addMany(interaction) {
 commandsUser.push(addManySlash);
 commandMap.set(addManySlash.name, addMany);
 
+const viewSetSlash = {
+    name: "view-set",
+    description: "List all cards in a specific set",
+    options: [
+        {
+            name: "name",
+            description: "The name of the set",
+            type: ApplicationCommandOptionType.String,
+            required: false,
+        },
+        {
+            name: "setno",
+            description: "The set number",
+            type: ApplicationCommandOptionType.Integer,
+            required: false,
+        }
+    ],
+    permissionsRequired: [8] // Admin permission
+};
+async function viewSet(interaction) {
+    const name = interaction.options.getString("name");
+    const setNo = interaction.options.getInteger("setno");
+
+    if (!name && setNo === null) {
+        return interaction.reply({ content: "Please provide either a set name or a set number.", ephemeral: true });
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+        const params = name ? { Name: name } : { SetNo: setNo };
+        const response = await axios.get(`${backendUrl}/set/`, { params });
+        const set = response.data;
+
+        if (!set) {
+            return interaction.editReply("No set found.");
+        }
+
+        const cards = set.cards || [];
+        const header = `**${set.Name}** (Set #${set.SetNo}) — ${cards.length} card${cards.length === 1 ? '' : 's'}`;
+
+        if (cards.length === 0) {
+            return interaction.editReply(`${header}\nNo cards in this set yet.`);
+        }
+
+        const lines = cards
+            .sort((a, b) => (a.Num ?? 0) - (b.Num ?? 0))
+            .map(card => `#${card.Num} **${card.Name}** | ${card.Rarity} | ID: ${card.SearchID}`);
+
+        const chunks = [];
+        let current = header;
+        for (const line of lines) {
+            if (current.length + line.length + 1 > 1900) {
+                chunks.push(current);
+                current = '';
+            }
+            current += '\n' + line;
+        }
+        if (current) chunks.push(current);
+
+        await interaction.editReply({ content: chunks[0] });
+        for (let i = 1; i < chunks.length; i++) {
+            await interaction.followUp({ content: chunks[i], ephemeral: true });
+        }
+
+    } catch (error) {
+        console.error("Error fetching set:", error);
+        const msg = error.response?.data?.message
+            ? `Error: ${error.response.data.message}`
+            : "An error occurred while fetching the set. Please try again later.";
+        await interaction.editReply(msg);
+    }
+}
+commandsUser.push(viewSetSlash);
+commandMap.set(viewSetSlash.name, viewSet);
+
 module.exports = {
     commandsAdminCard: commandsUser,
     commandAdminCardMap: commandMap
