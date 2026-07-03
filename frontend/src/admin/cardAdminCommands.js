@@ -16,8 +16,6 @@ const commandsUser = []
 const commandMap = new Map();
 
 
-// Inputs mirror the addMany CSV columns: Name, Subtitle, Rarity, Num, setRef,
-// ArtworkFile, Power, Speed, Special. (set is optional, like setRef in the CSV.)
 // Discord requires all required options before optional ones, so "set" comes last.
 const addCardSlash =  {
     name:"addcard",
@@ -59,24 +57,6 @@ const addCardSlash =  {
         required: true,
       },
       {
-        name: "power",
-        description: "The card's Power stat",
-        type: ApplicationCommandOptionType.Integer,
-        required: true,
-      },
-      {
-        name: "speed",
-        description: "The card's Speed stat",
-        type: ApplicationCommandOptionType.Integer,
-        required: true,
-      },
-      {
-        name: "special",
-        description: "The card's Special stat",
-        type: ApplicationCommandOptionType.Integer,
-        required: true,
-      },
-      {
         name: "set",
         description: "The set number to add the card to",
         type: ApplicationCommandOptionType.String,
@@ -91,9 +71,6 @@ async function addCard(interaction) {
     const rarity = interaction.options.getString("rarity");
     const num = interaction.options.getInteger("num");
     const artwork = interaction.options.getAttachment("artwork");
-    const power = interaction.options.getInteger("power");
-    const speed = interaction.options.getInteger("speed");
-    const special = interaction.options.getInteger("special");
     const set = interaction.options.getString("set");
 
     if (!name || !subtitle || !rarity || num === null || !artwork) {
@@ -114,9 +91,6 @@ async function addCard(interaction) {
             Rarity: rarity,
             Num: num,
             SetRef: set,
-            Power: power,
-            Speed: speed,
-            Special: special,
             callerID: interaction.user.id,
             // originalName carries the file extension so the backend/Nextcloud derive a
             // valid image mime type (e.g. image/gif) instead of application/octet-stream,
@@ -183,24 +157,6 @@ const editCardSlash =  {
         required: false,
       },
       {
-        name: "power",
-        description: "New Power stat",
-        type: ApplicationCommandOptionType.Integer,
-        required: false,
-      },
-      {
-        name: "speed",
-        description: "New Speed stat",
-        type: ApplicationCommandOptionType.Integer,
-        required: false,
-      },
-      {
-        name: "special",
-        description: "New Special stat",
-        type: ApplicationCommandOptionType.Integer,
-        required: false,
-      },
-      {
         name: "set",
         description: "Set number to move the card to",
         type: ApplicationCommandOptionType.String,
@@ -216,9 +172,6 @@ async function editCard(interaction) {
     const rarity = interaction.options.getString("rarity");
     const num = interaction.options.getInteger("num");
     const artwork = interaction.options.getAttachment("artwork");
-    const power = interaction.options.getInteger("power");
-    const speed = interaction.options.getInteger("speed");
-    const special = interaction.options.getInteger("special");
     const set = interaction.options.getString("set");
 
     await interaction.deferReply({ ephemeral: true });
@@ -233,9 +186,6 @@ async function editCard(interaction) {
         if (subtitle !== null) body.Subtitle = subtitle;
         if (rarity !== null) body.Rarity = rarity;
         if (num !== null) body.Num = num;
-        if (power !== null) body.Power = power;
-        if (speed !== null) body.Speed = speed;
-        if (special !== null) body.Special = special;
         if (set !== null) body.SetRef = set;
 
         if (artwork) {

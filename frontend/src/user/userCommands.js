@@ -145,7 +145,7 @@ async function openPack (interaction) {
             console.log("Card data fetched: ", cardResponse.data);
             const cardData = cardResponse.data.cards[0];
 
-            const details = `Rarity: ${cardData.Rarity}, Num : ${cardData.Num}, Power: ${cardData.Power}, Speed: ${cardData.Speed}, Special: ${cardData.Special}, ID: ${cardData.SearchID}`;
+            const details = `Rarity: ${cardData.Rarity}, Num: ${cardData.Num}, ID: ${cardData.SearchID}`;
 
             const embed = new EmbedBuilder()
                 .setTitle(cardData.Name)

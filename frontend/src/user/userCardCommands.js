@@ -66,7 +66,6 @@ async function viewCard(interaction) {
                 `**Subtitle:** ${cardData.Subtitle || '—'}`,
                 `**Rarity:** ${cardData.Rarity}`,
                 `**ID:** ${cardData.SearchID}  |  **Num:** ${cardData.Num}`,
-                `**Power:** ${cardData.Power ?? '—'}  |  **Speed:** ${cardData.Speed ?? '—'}  |  **Special:** ${cardData.Special ?? '—'}`,
                 `**Owned:** ${cardData.quantity}`,
             ].join('\n');
 

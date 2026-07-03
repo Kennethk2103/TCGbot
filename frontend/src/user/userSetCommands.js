@@ -30,7 +30,7 @@ async function getAllSets(interaction){//dONE
             return;
         }
         const message = response.data.map(set => {
-            return `Set Name: ${set.Name}, Set No: ${set.SetNo}\n ${(set.cards.length!=0) ? "Cards \n " + set.cards.map(card => card.Name + " | " + card.Rarity + " | " + card.Num + " | Power " + card.Power + " | Speed " + card.Speed + " | Special : " + card.Special + " | ID : " + card.SearchID).join("\n") : "No cards in this set."}`;
+            return `Set Name: ${set.Name}, Set No: ${set.SetNo}\n ${(set.cards.length!=0) ? "Cards \n " + set.cards.map(card => card.Name + " | " + card.Rarity + " | " + card.Num + " | ID : " + card.SearchID).join("\n") : "No cards in this set."}`;
         })
 
         const textOutput = new TextDisplayBuilder().setContent(message.join("\n\n"));

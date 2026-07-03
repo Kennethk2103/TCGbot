@@ -23,12 +23,9 @@ async function internalAddCard(
     Num,
     setRef,
     artworkRef, // <- Nextcloud artwork object
-    stats,      // <- { Power, Speed, Special }, all optional (strings or numbers)
     session
 ) {
     const validRarities = ["Common", "Rare", "Ultra Rare"];
-    // Coerce stat values to numbers; treat blank/missing as omitted.
-    const toNum = (v) => (v === undefined || v === null || v === "" ? undefined : Number(v));
 
     if (!Name) throw new DBError("No Name Was Given", 404);
     if (!Subtitle) throw new DBError("No Subtitle Was Given", 404);
@@ -69,9 +66,6 @@ async function internalAddCard(
         Rarity,
         Set: setId,
         Num,
-        Power: toNum(stats?.Power),
-        Speed: toNum(stats?.Speed),
-        Special: toNum(stats?.Special),
         Artwork: {
             ncPath: artworkRef.ncPath,
             shareId: artworkRef.shareId,
@@ -157,7 +151,6 @@ export const addCard = async (req, res) => {
             originalName: artworkOriginalName,
             size: uploadedArtwork.size,
             },
-            { Power: body.Power, Speed: body.Speed, Special: body.Special },
             session
         );
         });
@@ -271,9 +264,6 @@ export const addMany = async (req, res) => {
             Rarity,
             Num,
             SetRef,
-            Power: row.Power,
-            Speed: row.Speed,
-            Special: row.Special,
             artwork,
             rowIndex: idx + 1,
         };
@@ -318,7 +308,6 @@ export const addMany = async (req, res) => {
             item.Num,
             item.SetRef,
             item.artworkRef,
-            { Power: item.Power, Speed: item.Speed, Special: item.Special },
             session
         );
 
@@ -451,10 +440,6 @@ export const editCard = async (req, res) => {
         }
 
         if (body.Num !== undefined) card.Num = Number(body.Num);
-
-        if (body.Power !== undefined) card.Power = Number(body.Power);
-        if (body.Speed !== undefined) card.Speed = Number(body.Speed);
-        if (body.Special !== undefined) card.Special = Number(body.Special);
 
         if (body.SetRef !== undefined) {
             const setRef = body.SetRef?.trim() || null;
