@@ -230,8 +230,8 @@ export const addMany = async (req, res) => {
         if (/metadata\.csv$/i.test(entry.entryName) || /\.csv$/i.test(entry.entryName)) {
             //Prefer metadata.csv, but allow any .csv if only one exists
             csvData = entry.getData().toString("utf-8");
-        } else if (/^images\/.+\.(png|jpe?g|gif|webp)$/i.test(entry.entryName)) {
-            const filename = entry.entryName.split("/").pop();
+        } else if (/\.(png|jpe?g|gif|webp)$/i.test(entry.entryName)) {
+            const filename = entry.entryName.split(/[\\/]/).pop();
             const buffer = entry.getData();
             const contentType = mime.lookup(filename) || "application/octet-stream";
             images.set(filename, { buffer, contentType, originalName: filename });

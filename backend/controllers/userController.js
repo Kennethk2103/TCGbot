@@ -434,6 +434,13 @@ export const editUserInfo = async(req, res) => {
     }
 }
 
+// If a set lacks the rolled rarity, fall back in this order.
+const RARITY_FALLBACKS = {
+    "Ultra Rare": ["Rare", "Common"],
+    "Rare":       ["Common", "Ultra Rare"],
+    "Common":     ["Rare", "Ultra Rare"],
+};
+
 function rollRarity(weights) {
     const roll = Math.random() * 100;
     let cumulative = 0;
@@ -502,24 +509,33 @@ export const openPack = async(req, res) => {
                     rarity = rollRarity(slotOdds[i]);
                 }
 
-                const [card] = await cardModel.aggregate([
-                    {
-                        $match: {
-                            Rarity: rarity,
-                            ...(setId ? { Set: setId } : {})
-                        }
-                    },
-                    { $sample: { size: 1 } }
-                ]).session(session);
-
-                if (!card) {
-                    throw new DBError(`Failed to pull card for slot ${i + 1}`, 404);
+                let card = null;
+                let drawnRarity = rarity;
+                for (const r of [rarity, ...(RARITY_FALLBACKS[rarity] || [])]) {
+                    const [found] = await cardModel.aggregate([
+                        {
+                            $match: {
+                                Rarity: r,
+                                ...(setId ? { Set: setId } : {})
+                            }
+                        },
+                        { $sample: { size: 1 } }
+                    ]).session(session);
+                    if (found) {
+                        card = found;
+                        drawnRarity = r;
+                        break;
+                    }
                 }
 
-                    if (rarity === "Ultra Rare") {
-                        ultraPulled = true;
-                    }
-                    
+                if (!card) {
+                    throw new DBError(`No cards available in this set for slot ${i + 1}`, 404);
+                }
+
+                if (drawnRarity === "Ultra Rare") {
+                    ultraPulled = true;
+                }
+
                 cardsToGive.push(card);
             }
 
