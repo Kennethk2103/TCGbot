@@ -107,7 +107,7 @@ export const deleteSet = async (req, res) => {
 export const getSet = async (req, res) => {
     const session = await mongoose.startSession();
     try {
-        const { ID, Name } = req.query;
+        const { ID, Name, SetNo } = req.query;
 
         let foundSet;
 
@@ -115,9 +115,11 @@ export const getSet = async (req, res) => {
             if (ID) {
                 foundSet = await setModel.findById(ID).populate('cards').session(session);
             } else if (Name) {
-                foundSet = await setModel.findOne({Name: Name }).populate('cards').session(session);
+                foundSet = await setModel.findOne({ Name }).populate('cards').session(session);
+            } else if (SetNo) {
+                foundSet = await setModel.findOne({ SetNo: Number(SetNo) }).populate('cards').session(session);
             } else {
-                throw new DBError("No ID or Name provided to search for set", 400);
+                throw new DBError("No ID, Name, or SetNo provided to search for set", 400);
             }
 
             if (!foundSet) throw new DBError("Set Not Found", 404);

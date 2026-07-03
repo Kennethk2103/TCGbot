@@ -267,6 +267,7 @@ async function help(interaction) {
                 value: [
                     "`/open-pack <set>` — Open a card pack from the given set number",
                     "`/get-all-sets` — Browse all available card sets and their cards",
+                    "`/view-set [name] [setno]` — List all cards in a specific set",
                 ].join("\n"),
             },
             {
