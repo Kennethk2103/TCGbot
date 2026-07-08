@@ -60,6 +60,8 @@ const listCardsSlash= {
     options: [
     ],
 }
+const CARDS_PER_PAGE = 10;
+
 async function listCards(interaction) {
     const userId = interaction.user.id;
 
@@ -73,26 +75,56 @@ async function listCards(interaction) {
             return interaction.editReply("You do not own any cards yet.");
         }
 
-        // Build lines and chunk into <=2000-char messages to stay under Discord's limit.
-        const lines = userCards.map(card =>
-            `**${card.Name}** (${card.Rarity}) — ID: ${card.SearchID} | Qty: ${card.quantity}`
-        );
+        const totalPages = Math.ceil(userCards.length / CARDS_PER_PAGE);
+        let page = 0;
 
-        const chunks = [];
-        let current = '';
-        for (const line of lines) {
-            if (current.length + line.length + 1 > 1900) {
-                chunks.push(current);
-                current = '';
+        const buildPage = (p) => {
+            const slice = userCards.slice(p * CARDS_PER_PAGE, (p + 1) * CARDS_PER_PAGE);
+            const content = slice
+                .map(card => `**${card.Name}** (${card.Rarity}) — ID: ${card.SearchID} | Qty: ${card.quantity}`)
+                .join('\n');
+
+            const prev = new ButtonBuilder()
+                .setCustomId('listCards_prev')
+                .setLabel('◀ Prev')
+                .setStyle(2)
+                .setDisabled(p === 0);
+
+            const next = new ButtonBuilder()
+                .setCustomId('listCards_next')
+                .setLabel('Next ▶')
+                .setStyle(2)
+                .setDisabled(p === totalPages - 1);
+
+            const row = new ActionRowBuilder().addComponents(prev, next);
+
+            return {
+                content: `**Your cards** — Page ${p + 1} of ${totalPages}\n\n${content}`,
+                components: totalPages > 1 ? [row] : [],
+            };
+        };
+
+        const reply = await interaction.editReply(buildPage(page));
+
+        if (totalPages <= 1) return;
+
+        const collector = reply.createMessageComponentCollector({
+            componentType: ComponentType.Button,
+            time: 120_000,
+        });
+
+        collector.on('collect', async (btn) => {
+            if (btn.user.id !== userId) {
+                return btn.reply({ content: "This isn't your card list.", ephemeral: true });
             }
-            current += (current ? '\n' : '') + line;
-        }
-        if (current) chunks.push(current);
+            if (btn.customId === 'listCards_prev') page = Math.max(0, page - 1);
+            if (btn.customId === 'listCards_next') page = Math.min(totalPages - 1, page + 1);
+            await btn.update(buildPage(page));
+        });
 
-        await interaction.editReply({ content: chunks[0] });
-        for (let i = 1; i < chunks.length; i++) {
-            await interaction.followUp({ content: chunks[i], ephemeral: true });
-        }
+        collector.on('end', async () => {
+            await interaction.editReply({ components: [] }).catch(() => {});
+        });
 
     } catch (error) {
         console.error("Error fetching user cards:", error);
