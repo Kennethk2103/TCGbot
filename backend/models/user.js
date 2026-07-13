@@ -5,7 +5,7 @@ const userSchema = new Schema({
     DiscordID: {type: String, required: true, unique: true },
     Pin: {type: String, required: true},
     isAdmin: { type: Boolean, default: false },
-    packsAvailable: {type: Number, default: 1}, //This ensures they have one on joining
+    packsAvailable: {type: Number, default: 3}, //This ensures they have one on joining
     Cards: [{
         card: { type: mongoose.Schema.Types.ObjectId, ref: 'Card' },
         quantity: { type: Number, default: 1 }
