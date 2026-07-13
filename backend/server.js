@@ -39,9 +39,11 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server listening on port ${PORT}`)
 })
 
-schedule.scheduleJob('0 0 * * *', async() => { 
+schedule.scheduleJob('* * * * *', async() => {
+  console.log('Daily pack job fired at', new Date().toISOString());
   try{
     await giveDailyPack();
+    console.log('Daily pack job completed successfully');
   }catch(error){
     console.error('Error distributing daily packs:', error);
   }
