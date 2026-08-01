@@ -241,14 +241,29 @@ async function makeTradeRequestReply(interaction) {
             buttonCollector.stop();
             selectCollector.stop();
         } else if (buttonInteraction.customId === "confirmTrade") {
-            // Handle trade confirmation logic here
             await axios.post(`${backendUrl}/trade/`, {
                 offeringUserDiscordID: userId,
                 receivingUserDiscordID: receiverId,
                 offeredCards: Array.from(cardsSelectedSender.values()).map(c => ({ card: c.id, quantity: c.count })),
                 requestedCards: Array.from(cardsSelectedForTradeReciever.values()).map(c => ({ card: c.id, quantity: c.count })),
             });
-            await buttonInteraction.update({ components: [new TextDisplayBuilder().setContent("Trade confirmed!")] });
+
+            const offeredNames = Array.from(cardsSelectedSender.values()).map(c => `${c.name} (x${c.count})`).join(", ");
+            const requestedNames = Array.from(cardsSelectedForTradeReciever.values()).map(c => `${c.name} (x${c.count})`).join(", ");
+
+            try {
+                const receivingDiscordUser = await buttonInteraction.client.users.fetch(receiverId);
+                await receivingDiscordUser.send(
+                    `Hey <@${receiverId}>! <@${userId}> has sent you a trade request!\n` +
+                    `**They're offering:** ${offeredNames}\n` +
+                    `**They're requesting:** ${requestedNames}\n` +
+                    `Use \`/view-trade-requests\` to respond.`
+                );
+            } catch (dmError) {
+                console.warn("Could not DM receiving user:", dmError.message);
+            }
+
+            await buttonInteraction.update({ components: [new TextDisplayBuilder().setContent("Trade request sent!")] });
             buttonCollector.stop();
             selectCollector.stop();
         }
@@ -379,6 +394,7 @@ async function viewTradeRequests(interaction) {
         let editPendingTheirs = null;
         let editPageMine = 0;
         let editPageTheirs = 0;
+        let editOtherDiscordId = null;
 
         const applyQuantityEdit = (cardId, quantity, sourceMap, destMap) => {
             const card = sourceMap.get(cardId);
@@ -568,6 +584,7 @@ async function viewTradeRequests(interaction) {
                 if (!trade) { await buttonInteraction.editReply({ flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent("Trade not found.")] }); return; }
 
                 const otherDiscordId = trade.offeringUser.DiscordID;
+                editOtherDiscordId = otherDiscordId;
                 const [callerRes, otherRes] = await Promise.all([
                     axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: userId } }),
                     axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: otherDiscordId } }),
@@ -622,12 +639,28 @@ async function viewTradeRequests(interaction) {
                 await buttonInteraction.update(await createTradeView(page));
             } else if (buttonInteraction.customId === 'editConfirm') {
                 try {
-                    await axios.post(`${backendUrl}/trade/edit`, {
+                    const editRes = await axios.post(`${backendUrl}/trade/edit`, {
                         tradeID: editingTradeId,
                         callingUser: userId,
                         offeredCards: Array.from(editCardsSelectedMine.values()).map(c => ({ card: c.id, quantity: c.count })),
                         requestedCards: Array.from(editCardsSelectedTheirs.values()).map(c => ({ card: c.id, quantity: c.count })),
                     });
+
+                    const offeredNames = Array.from(editCardsSelectedMine.values()).map(c => `${c.name} (x${c.count})`).join(", ");
+                    const requestedNames = Array.from(editCardsSelectedTheirs.values()).map(c => `${c.name} (x${c.count})`).join(", ");
+
+                    try {
+                        const otherDiscordUser = await buttonInteraction.client.users.fetch(editOtherDiscordId);
+                        await otherDiscordUser.send(
+                            `Hey <@${editOtherDiscordId}>! <@${userId}> sent you a counter-offer!\n` +
+                            `**They're offering:** ${offeredNames}\n` +
+                            `**They're requesting:** ${requestedNames}\n` +
+                            `Use \`/view-trade-requests\` to respond.`
+                        );
+                    } catch (dmError) {
+                        console.warn("Could not DM other user:", dmError.message);
+                    }
+
                     editingTradeId = null;
                     await buttonInteraction.update(await createTradeView(page));
                 } catch (error) {
