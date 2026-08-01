@@ -98,8 +98,12 @@ async function makeTradeRequestReply(interaction) {
 
     const makeTradeWindow = (pronoun, cardsHas, cardsSelected, addCardMode, removeCardMode, currentCardPage, isSender, pendingCard) => {
 
+        const header = new TextDisplayBuilder()
+            .setContent(isSender ? "## 📤 Your Offer" : "## 📥 You're Requesting")
+            .setId(isSender ? 100 : 200);
+
         const currentCardsForCurrentUser = new TextDisplayBuilder()
-            .setContent(`${pronoun} currently selected cards: ` + (cardsSelected.size > 0 ? Array.from(cardsSelected.values()).map(card => `${card.name} (x${card.count})`).join(", ") : "None"))
+            .setContent((isSender ? "Offering: " : "Requesting: ") + (cardsSelected.size > 0 ? Array.from(cardsSelected.values()).map(card => `${card.name} (x${card.count})`).join(", ") : "None"))
             .setId(isSender ? 101 : 201);
 
         const displayPool = removeCardMode ? cardsSelected : cardsHas;
@@ -110,7 +114,7 @@ async function makeTradeRequestReply(interaction) {
             const maxQty = Math.min(pendingCard.count, 25);
             const quantitySelect = new StringSelectMenuBuilder()
                 .setCustomId(isSender ? "quantitySelectorSender" : "quantitySelectorReceiver")
-                .setPlaceholder(`How many ${pendingCard.name}? (you have ${pendingCard.count})`)
+                .setPlaceholder(`How many ${pendingCard.name}? (${isSender ? "you have" : "they have"} ${pendingCard.count})`)
                 .setMinValues(1)
                 .setMaxValues(1)
                 .addOptions(Array.from({ length: maxQty }, (_, i) => ({
@@ -119,16 +123,30 @@ async function makeTradeRequestReply(interaction) {
                 })));
             selectorRow = new ActionRowBuilder().addComponents(quantitySelect);
         } else {
-            const pageSlice = cardHasArray.slice(currentCardPage * 25, (currentCardPage + 1) * 25);
+            const totalPages = Math.ceil(displayPool.size / 25) || 1;
+            const hasPrev = currentCardPage > 0;
+            const hasNext = (currentCardPage + 1) * 25 < displayPool.size;
+
+            // Reserve slots for nav options so cards never push past 25 total options
+            const navSlots = (hasPrev ? 1 : 0) + (hasNext ? 1 : 0);
+            const cardSlots = 25 - navSlots;
+            const pageSlice = cardHasArray.slice(currentCardPage * 25, currentCardPage * 25 + cardSlots);
+
+            const action = removeCardMode ? "Remove" : "Add";
+            const options = pageSlice.map(card => ({
+                label: `${card.name} (x${card.count})`,
+                value: card.id.toString(),
+            }));
+
+            if (hasPrev) options.push({ label: `◀  Page ${currentCardPage} of ${totalPages}`, value: '__prev_page__' });
+            if (hasNext) options.push({ label: `Page ${currentCardPage + 2} of ${totalPages}  ▶`, value: '__next_page__' });
+
             const cardSelect = new StringSelectMenuBuilder()
                 .setCustomId(isSender ? "currentCardsForCurrentUserSelect" : "otherUserCardsSelect")
-                .setPlaceholder(removeCardMode ? "Select a card to remove" : "Select a card to add")
+                .setPlaceholder(`${action} a card — page ${currentCardPage + 1} of ${totalPages}`)
                 .setMinValues(1)
                 .setMaxValues(1)
-                .addOptions(pageSlice.map(card => ({
-                    label: `${card.name} (x${card.count})`,
-                    value: card.id.toString(),
-                })));
+                .addOptions(options);
             selectorRow = new ActionRowBuilder().addComponents(cardSelect);
         }
 
@@ -143,22 +161,7 @@ async function makeTradeRequestReply(interaction) {
                 .setStyle(removeCardMode ? "Danger" : "Secondary"),
         );
 
-        const nextPageButton = new ButtonBuilder()
-            .setCustomId(isSender ? "nextPageSenderCards" : "nextPageReceiverCards")
-            .setLabel("Next Page")
-            .setStyle("Secondary");
-
-        const previousPageButton = new ButtonBuilder()
-            .setCustomId(isSender ? "previousPageSenderCards" : "previousPageReceiverCards")
-            .setLabel("Previous Page")
-            .setStyle("Secondary");
-
-        const pageComponents = [];
-        if (currentCardPage > 0) pageComponents.push(previousPageButton);
-        if ((currentCardPage + 1) * 25 < displayPool.size) pageComponents.push(nextPageButton);
-
-        const returnComponents = [currentCardsForCurrentUser, selectorRow, addRemoveContainer];
-        if (pageComponents.length > 0) returnComponents.push(new ActionRowBuilder().addComponents(pageComponents));
+        const returnComponents = [header, currentCardsForCurrentUser, selectorRow, addRemoveContainer];
 
         return returnComponents;
     }
@@ -214,12 +217,6 @@ async function makeTradeRequestReply(interaction) {
             addCardModeSender = false;
 
             await buttonInteraction.update(getReplyObj());
-        } else if (buttonInteraction.customId === "nextPageSenderCards") {
-            currentCardPageForSenderCards++;
-            await buttonInteraction.update(getReplyObj());
-        } else if (buttonInteraction.customId === "previousPageSenderCards") {
-            currentCardPageForSenderCards--;
-            await buttonInteraction.update(getReplyObj());
         } else if (buttonInteraction.customId === "addCardToTradeReceiver") {
             addCardModeReceiver = !addCardModeReceiver;
             removeCardModeReceiver = false;
@@ -233,12 +230,6 @@ async function makeTradeRequestReply(interaction) {
             addCardModeSender = false;
             addCardModeReceiver = false;
             //cardsSelectedForTradeReciever = cardsSelectedForTradeReciever.filter(c => !selectedCards.includes(c.id.toString()));
-            await buttonInteraction.update(getReplyObj());
-        } else if (buttonInteraction.customId === "nextPageReceiverCards") {
-            currentCardPageForReceiverCards++;
-            await buttonInteraction.update(getReplyObj());
-        } else if (buttonInteraction.customId === "previousPageReceiverCards") {
-            currentCardPageForReceiverCards--;
             await buttonInteraction.update(getReplyObj());
         } else if (buttonInteraction.customId === "cancelTrade") {
             await buttonInteraction.update({ components: [new TextDisplayBuilder().setContent("Trade cancelled.")] });
@@ -308,9 +299,24 @@ async function makeTradeRequestReply(interaction) {
             return;
         }
 
-        // Card selected — set pending and show quantity picker
+        // Card selected (or pagination nav) — set pending and show quantity picker
         if (customId === "currentCardsForCurrentUserSelect" || customId === "otherUserCardsSelect") {
             const forSender = customId === "currentCardsForCurrentUserSelect";
+
+            // Handle in-dropdown pagination
+            if (values[0] === '__prev_page__') {
+                if (forSender) currentCardPageForSenderCards = Math.max(0, currentCardPageForSenderCards - 1);
+                else currentCardPageForReceiverCards = Math.max(0, currentCardPageForReceiverCards - 1);
+                await selectInteraction.update(getReplyObj());
+                return;
+            }
+            if (values[0] === '__next_page__') {
+                if (forSender) currentCardPageForSenderCards++;
+                else currentCardPageForReceiverCards++;
+                await selectInteraction.update(getReplyObj());
+                return;
+            }
+
             const addCardMode = forSender ? addCardModeSender : addCardModeReceiver;
             const removeCardMode = forSender ? removeCardModeSender : removeCardModeReceiver;
 
