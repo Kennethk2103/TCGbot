@@ -191,7 +191,7 @@ async function openPack (interaction) {
             if (cardData.Artwork?.downloadUrl) {
                 const artResp = await axios.get(cardData.Artwork.downloadUrl, { responseType: 'arraybuffer' });
                 const ext = (cardData.Artwork.contentType && cardData.Artwork.contentType.split('/')[1]) || 'png';
-                file = new AttachmentBuilder(Buffer.from(artResp.data), { name: `${cardData.Name}.${ext}` });
+                file = new AttachmentBuilder(Buffer.from(artResp.data), { name: `SPOILER_${cardData.Name}.${ext}` });
             }
 
             cards.push({ embed, file });
