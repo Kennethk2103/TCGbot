@@ -39,6 +39,11 @@ async function makeTradeRequestReply(interaction) {
     const userId = interaction.user.id;
     const receiverId = interaction.options.getUser('user').id;
 
+    if (userId === receiverId) {
+        await interaction.reply({ content: "You cannot trade with yourself.", ephemeral: true });
+        return;
+    }
+
     //fetch cards from db for both users
     let cardsSenderHas = new Map();
     let cardsReceiverHas = new Map();
