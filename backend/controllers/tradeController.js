@@ -279,12 +279,12 @@ export const acceptTrade = async (req, res) => {
     }
 };
 
-// Edit Trade
+// Edit Trade — only the current receivingUser may counter-offer; roles swap on edit
 export const editTrade = async (req, res) => {
     const session = await mongoose.startSession();
     try {
         const updatedTrade = await session.withTransaction(async () => {
-            const tradeID = req.params.id;
+            const tradeID = req.body.tradeID;
             const callingUserDiscordID = req.body.callingUser;
             const { offeredCards, requestedCards } = req.body;
 
@@ -302,13 +302,16 @@ export const editTrade = async (req, res) => {
 
             if (!trade) throw new DBError("Trade not found", 404);
 
-            const isOfferingUser = trade.offeringUser.DiscordID === callingUserDiscordID;
-            const isReceivingUser = trade.receivingUser.DiscordID === callingUserDiscordID;
+            if (trade.receivingUser.DiscordID !== callingUserDiscordID)
+                throw new DBError("Only the receiving user can counter-offer", 403);
 
-            if (!isOfferingUser && !isReceivingUser) {
-                throw new DBError("User not authorized to edit this trade", 403);
-            }
+            const callingUser = await userModel.findOne({ DiscordID: callingUserDiscordID }).session(session);
+            if (!callingUser) throw new DBError("Calling user not found", 404);
 
+            const otherUserId = trade.offeringUser._id;
+
+            trade.offeringUser = callingUser._id;
+            trade.receivingUser = otherUserId;
             trade.offeredCards = normalizeCards(offeredCards);
             trade.requestedCards = normalizeCards(requestedCards);
 

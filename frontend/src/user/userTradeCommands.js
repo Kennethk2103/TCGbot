@@ -99,7 +99,7 @@ async function makeTradeRequestReply(interaction) {
     const makeTradeWindow = (pronoun, cardsHas, cardsSelected, addCardMode, removeCardMode, currentCardPage, isSender, pendingCard) => {
 
         const header = new TextDisplayBuilder()
-            .setContent(isSender ? "## 📤 Your Offer" : "## 📥 You're Requesting")
+            .setContent(isSender ? "## Your Offer" : "## You're Requesting")
             .setId(isSender ? 100 : 200);
 
         const currentCardsForCurrentUser = new TextDisplayBuilder()
@@ -356,165 +356,320 @@ const viewTradeRequestsSlash = {
 }
 async function viewTradeRequests(interaction) {
     const userId = interaction.user.id;
-    console.log("Fetching trade requests for user:", userId);
 
     try {
         let page = 0;
 
+        // --- Editor state ---
+        let editingTradeId = null;
+        let editCardsMineHas = new Map();
+        let editCardsTheirsHas = new Map();
+        let editCardsSelectedMine = new Map();
+        let editCardsSelectedTheirs = new Map();
+        let editAddModeMine = true;
+        let editAddModeTheirs = true;
+        let editRemoveModeMine = false;
+        let editRemoveModeTheirs = false;
+        let editPendingMine = null;
+        let editPendingTheirs = null;
+        let editPageMine = 0;
+        let editPageTheirs = 0;
 
-        let createTradeView = async (curPage) => {
-            const response = await axios.get(`${backendUrl}/trade/getAll`, { params: { callerID: userId, discordID: userId } });
-            console.log("Response from backend:", response.data);
+        const applyQuantityEdit = (cardId, quantity, sourceMap, destMap) => {
+            const card = sourceMap.get(cardId);
+            if (!card) return;
+            const newCount = card.count - quantity;
+            if (newCount <= 0) sourceMap.delete(cardId);
+            else sourceMap.set(cardId, { ...card, count: newCount });
+            const existing = destMap.get(cardId);
+            destMap.set(cardId, { id: card.id, name: card.name, count: (existing ? existing.count : 0) + quantity });
+        };
 
+        const makeEditorWindow = (cardsHas, cardsSelected, addMode, removeMode, currentPage, isMine, pendingCard) => {
+            const header = new TextDisplayBuilder()
+                .setContent(isMine ? "## Your Counter-Offer" : "## You're Requesting")
+                .setId(isMine ? 300 : 400);
+
+            const selectedText = new TextDisplayBuilder()
+                .setContent((isMine ? "Offering: " : "Requesting: ") +
+                    (cardsSelected.size > 0
+                        ? Array.from(cardsSelected.values()).map(c => `${c.name} (x${c.count})`).join(", ")
+                        : "None"))
+                .setId(isMine ? 301 : 401);
+
+            const displayPool = removeMode ? cardsSelected : cardsHas;
+            const cardArray = Array.from(displayPool.values());
+
+            let selectorRow;
+            if (pendingCard) {
+                const maxQty = Math.min(pendingCard.count, 25);
+                const quantitySelect = new StringSelectMenuBuilder()
+                    .setCustomId(isMine ? "editMineQuantitySelect" : "editTheirsQuantitySelect")
+                    .setPlaceholder(`How many ${pendingCard.name}? (${isMine ? "you have" : "they have"} ${pendingCard.count})`)
+                    .setMinValues(1).setMaxValues(1)
+                    .addOptions(Array.from({ length: maxQty }, (_, i) => ({ label: `${i + 1}`, value: `${i + 1}` })));
+                selectorRow = new ActionRowBuilder().addComponents(quantitySelect);
+            } else {
+                const totalPages = Math.ceil(displayPool.size / 25) || 1;
+                const hasPrev = currentPage > 0;
+                const hasNext = (currentPage + 1) * 25 < displayPool.size;
+                const navSlots = (hasPrev ? 1 : 0) + (hasNext ? 1 : 0);
+                const pageSlice = cardArray.slice(currentPage * 25, currentPage * 25 + (25 - navSlots));
+                const action = removeMode ? "Remove" : "Add";
+                const options = pageSlice.map(c => ({ label: `${c.name} (x${c.count})`, value: c.id.toString() }));
+                if (hasPrev) options.push({ label: `< Page ${currentPage} of ${totalPages}`, value: '__prev_page__' });
+                if (hasNext) options.push({ label: `Page ${currentPage + 2} of ${totalPages} >`, value: '__next_page__' });
+
+                const cardSelect = new StringSelectMenuBuilder()
+                    .setCustomId(isMine ? "editMineCardSelect" : "editTheirsCardSelect")
+                    .setPlaceholder(options.length === 0 ? 'No cards available' : `${action} a card — page ${currentPage + 1} of ${totalPages}`)
+                    .setMinValues(1).setMaxValues(1)
+                    .addOptions(options.length > 0 ? options : [{ label: 'No cards available', value: '__none__' }]);
+                selectorRow = new ActionRowBuilder().addComponents(cardSelect);
+            }
+
+            const addRemoveRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(isMine ? "editAddMine" : "editAddTheirs").setLabel("Add Card").setStyle(addMode ? "Primary" : "Secondary"),
+                new ButtonBuilder().setCustomId(isMine ? "editRemoveMine" : "editRemoveTheirs").setLabel("Remove Card").setStyle(removeMode ? "Danger" : "Secondary"),
+            );
+
+            return [header, selectedText, selectorRow, addRemoveRow];
+        };
+
+        const getEditorUI = () => {
+            const mine = makeEditorWindow(editCardsMineHas, editCardsSelectedMine, editAddModeMine, editRemoveModeMine, editPageMine, true, editPendingMine);
+            const theirs = makeEditorWindow(editCardsTheirsHas, editCardsSelectedTheirs, editAddModeTheirs, editRemoveModeTheirs, editPageTheirs, false, editPendingTheirs);
+            const actionRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId("editBack").setLabel("Back").setStyle("Secondary"),
+                new ButtonBuilder().setCustomId("editConfirm").setLabel("Send Counter-Offer").setStyle("Success"),
+            );
+            return { flags: 1 << 15 | 64, components: [...mine, ...theirs, actionRow] };
+        };
+
+        const createTradeView = async (curPage) => {
+            const response = await axios.get(`${backendUrl}/trade/getAll`, { params: { discordID: userId } });
 
             if (!response.data || !Array.isArray(response.data)) {
-                console.error("Invalid response format:", response.data);
-
-                return {
-                    flags: 1 << 15 | 64,
-                    components: [new TextDisplayBuilder().setContent("An error occurred while fetching trade requests.")],
-                    ephemeral: true,
-                }
+                return { flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent("An error occurred while fetching trade requests.")] };
             }
 
             const trades = response.data;
             if (trades.length === 0) {
-                return {
-                    flags: 1 << 15 | 64,
-                    components: [new TextDisplayBuilder().setContent("You have no trade requests.")],
-                    ephemeral: true,
-                }
+                return { flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent("You have no trade requests.")] };
             }
 
-            trades.slice(curPage * 3, (curPage + 1) * 3);
-            const message = trades.map(trade => {
-                const status = trade.completed ? "Completed" : trade.rejected ? "Rejected" : "Pending";
-                const offeredCards = trade.offeredCards.map(card => `${card.card.Name} (x${card.quantity})`).join(", ");
-                const requestedCards = trade.requestedCards.map(card => `${card.card.Name} (x${card.quantity})`).join(", ");
-                //return `Trade ID: ${trade._id}\nFrom: <@${trade.offeringUser.DiscordID}>\nTo: <@${trade.receivingUser.DiscordID}>\nOffered Cards: ${offeredCards}\nRequested Cards: ${requestedCards}\nStatus: ${status}`;
-
-            });
-
-            const items = [];
-            items.push(new TextDisplayBuilder().setContent(`\`\`\`You have ${trades.length} trade requests:\`\`\``));
+            const items = [new TextDisplayBuilder().setContent(`You have ${trades.length} trade request(s):`)];
 
             for (let i = curPage * 3; i < Math.min((curPage + 1) * 3, trades.length); i++) {
                 const trade = trades[i];
-                const status = trade.completed ? "Completed" : trade.rejected ? "Rejected" : "Pending";
-                const offeredCards = trade.offeredCards.map(card => `${card.card.Name} (x${card.quantity})`).join(", ");
-                const requestedCards = trade.requestedCards.map(card => `${card.card.Name} (x${card.quantity})`).join(", ");
+                const isReceiver = trade.receivingUser.DiscordID === userId;
+                const status = trade.completed ? "Completed" : trade.rejected ? "Rejected"
+                    : isReceiver ? "Awaiting your response" : "Waiting for their response";
+
+                const offeredCards = trade.offeredCards.map(c => `${c.card.Name} (x${c.quantity})`).join(", ");
+                const requestedCards = trade.requestedCards.map(c => `${c.card.Name} (x${c.quantity})`).join(", ");
+
+                const tradeText = isReceiver
+                    ? `From: <@${trade.offeringUser.DiscordID}>\nThey offer: ${offeredCards}\nThey want: ${requestedCards}\nStatus: ${status}`
+                    : `To: <@${trade.receivingUser.DiscordID}>\nYou offered: ${offeredCards}\nYou requested: ${requestedCards}\nStatus: ${status}`;
+
                 const buttonRow = new ActionRowBuilder();
-
-                const acceptButton = new ButtonBuilder()
-                    .setCustomId(`acceptTrade_${trade._id}`)
-                    .setLabel("Accept")
-                    .setStyle("Success");
-
-                const rejectButton = new ButtonBuilder()
-                    .setCustomId(`rejectTrade_${trade._id}`)
-                    .setLabel((trade.offeringUser.DiscordID === userId) ? "Cancel" : "Reject")
-                    .setStyle("Danger");
-
-
-                if (!trade.completed && !trade.rejected && trade.receivingUser.DiscordID === userId) {
-                    buttonRow.addComponents(acceptButton);
+                if (!trade.completed && !trade.rejected && isReceiver) {
+                    buttonRow.addComponents(
+                        new ButtonBuilder().setCustomId(`acceptTrade_${trade._id}`).setLabel("Accept").setStyle("Success"),
+                        new ButtonBuilder().setCustomId(`counterTrade_${trade._id}`).setLabel("Counter-Offer").setStyle("Primary"),
+                    );
                 }
                 if (!trade.completed && !trade.rejected) {
-                    buttonRow.addComponents(rejectButton);
+                    buttonRow.addComponents(
+                        new ButtonBuilder().setCustomId(`rejectTrade_${trade._id}`).setLabel(isReceiver ? "Reject" : "Cancel").setStyle("Danger"),
+                    );
                 }
 
-                const textField = new TextDisplayBuilder()
-                    .setContent(`Trade ID: ${trade._id}\nFrom: <@${trade.offeringUser.DiscordID}>\nTo: <@${trade.receivingUser.DiscordID}>\nOffered Cards: ${offeredCards}\nRequested Cards: ${requestedCards}\nStatus: ${status}`)
-
-
-                let container = new ContainerBuilder().addTextDisplayComponents(textField).addActionRowComponents(buttonRow);
-
-
-                items.push(container);
+                items.push(new ContainerBuilder()
+                    .addTextDisplayComponents(new TextDisplayBuilder().setContent(tradeText))
+                    .addActionRowComponents(buttonRow));
             }
-
-
-            const nextPageButton = new ButtonBuilder()
-                .setCustomId('nextPageTrades')
-                .setLabel('Next Page')
-                .setStyle('Secondary');
-
-            const prevPageButton = new ButtonBuilder()
-                .setCustomId('prevPageTrades')
-                .setLabel('Previous Page')
-                .setStyle('Secondary');
-
-            const addPrevButton = page > 0;
-            const addNextButton = (page + 1) * 3 < trades.length;
 
             const pageButtons = new ActionRowBuilder();
-            if (addPrevButton) pageButtons.addComponents(prevPageButton);
-            if (addNextButton) pageButtons.addComponents(nextPageButton);
+            if (curPage > 0) pageButtons.addComponents(new ButtonBuilder().setCustomId('prevPageTrades').setLabel('Previous Page').setStyle('Secondary'));
+            if ((curPage + 1) * 3 < trades.length) pageButtons.addComponents(new ButtonBuilder().setCustomId('nextPageTrades').setLabel('Next Page').setStyle('Secondary'));
+            if (pageButtons.components.length > 0) items.push(pageButtons);
 
-            if (addPrevButton || addNextButton) {
-                items.push(pageButtons);
-            }
+            return { flags: 1 << 15 | 64, components: items };
+        };
 
-            return {
-                flags: 1 << 15 | 64,
-                components: items,
-                ephemeral: true,
-            }
-        }
+        const reply = await interaction.reply(await createTradeView(page));
 
-        let items = await createTradeView(page);
-
-        const reply = await interaction.reply(items);
-
-        const buttonCollector = reply.createMessageComponentCollector({
-            componentType: ComponentType.Button,
-            time: 600000, // 10 minutes
-        });
+        const buttonCollector = reply.createMessageComponentCollector({ componentType: ComponentType.Button, time: 600000 });
+        const selectCollector = reply.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 600000 });
 
         buttonCollector.on('collect', async (buttonInteraction) => {
             const [action, tradeId] = buttonInteraction.customId.split('_');
-            console.log(`Button interaction received: action=${action}, tradeId=${tradeId}`);
 
+            // Trade list actions
             if (action === 'acceptTrade') {
                 try {
-                    await axios.post(`${backendUrl}/trade/accept`, {
-                        tradeID: tradeId,
-                        callerID: userId,
-                        callingUser: userId,
-
-                    });
-                    buttonInteraction.update(await createTradeView(page));
+                    await axios.post(`${backendUrl}/trade/accept`, { tradeID: tradeId, callingUser: userId });
+                    await buttonInteraction.update(await createTradeView(page));
                 } catch (error) {
                     console.error("Error accepting trade:", error);
-                    await buttonInteraction.update({ flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent("An error occurred while accepting the trade.")], ephemeral: true });
+                    await buttonInteraction.update({ flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent("An error occurred while accepting the trade.")] });
                 }
             } else if (action === 'rejectTrade') {
                 try {
-                    await axios.post(`${backendUrl}/trade/reject`, {
-                        tradeID: tradeId,
-                        callerID: userId,
-                        callingUser: userId,
-                    });
-                    buttonInteraction.update(await createTradeView(page));
+                    await axios.post(`${backendUrl}/trade/reject`, { tradeID: tradeId, callingUser: userId });
+                    await buttonInteraction.update(await createTradeView(page));
                 } catch (error) {
                     console.error("Error rejecting trade:", error);
-                    await buttonInteraction.update({ flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent("An error occurred while rejecting the trade.")], ephemeral: true });
+                    await buttonInteraction.update({ flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent("An error occurred while rejecting the trade.")] });
                 }
-            }
-            else if (action === 'nextPageTrades') {
+            } else if (action === 'nextPageTrades') {
                 page++;
-                buttonInteraction.update(await createTradeView(page));
-            }
-            else if (action === 'prevPageTrades') {
+                await buttonInteraction.update(await createTradeView(page));
+            } else if (action === 'prevPageTrades') {
                 page--;
-                buttonInteraction.update(await createTradeView(page));
+                await buttonInteraction.update(await createTradeView(page));
+
+            // Open counter-offer editor
+            } else if (action === 'counterTrade') {
+                await buttonInteraction.deferUpdate();
+
+                const allTrades = await axios.get(`${backendUrl}/trade/getAll`, { params: { discordID: userId } });
+                const trade = allTrades.data.find(t => t._id === tradeId);
+                if (!trade) { await buttonInteraction.editReply({ flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent("Trade not found.")] }); return; }
+
+                const otherDiscordId = trade.offeringUser.DiscordID;
+                const [callerRes, otherRes] = await Promise.all([
+                    axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: userId } }),
+                    axios.get(`${backendUrl}/user/cards`, { params: { DiscordID: otherDiscordId } }),
+                ]);
+
+                editCardsMineHas = new Map();
+                callerRes.data.cards.forEach(c => editCardsMineHas.set(c._id, { id: c._id, name: c.Name, count: c.quantity }));
+
+                editCardsTheirsHas = new Map();
+                otherRes.data.cards.forEach(c => editCardsTheirsHas.set(c._id, { id: c._id, name: c.Name, count: c.quantity }));
+
+                // Pre-populate from receiver's perspective:
+                // their offer (what I give) = trade.requestedCards, my request (what I get) = trade.offeredCards
+                editCardsSelectedMine = new Map();
+                editCardsSelectedTheirs = new Map();
+
+                for (const tc of trade.requestedCards) {
+                    const id = tc.card._id;
+                    const qty = tc.quantity;
+                    editCardsSelectedMine.set(id, { id, name: tc.card.Name, count: qty });
+                    const avail = editCardsMineHas.get(id);
+                    if (avail) {
+                        const n = avail.count - qty;
+                        if (n <= 0) editCardsMineHas.delete(id);
+                        else editCardsMineHas.set(id, { ...avail, count: n });
+                    }
+                }
+
+                for (const tc of trade.offeredCards) {
+                    const id = tc.card._id;
+                    const qty = tc.quantity;
+                    editCardsSelectedTheirs.set(id, { id, name: tc.card.Name, count: qty });
+                    const avail = editCardsTheirsHas.get(id);
+                    if (avail) {
+                        const n = avail.count - qty;
+                        if (n <= 0) editCardsTheirsHas.delete(id);
+                        else editCardsTheirsHas.set(id, { ...avail, count: n });
+                    }
+                }
+
+                editingTradeId = tradeId;
+                editAddModeMine = true; editAddModeTheirs = true;
+                editRemoveModeMine = false; editRemoveModeTheirs = false;
+                editPendingMine = null; editPendingTheirs = null;
+                editPageMine = 0; editPageTheirs = 0;
+
+                await buttonInteraction.editReply(getEditorUI());
+
+            // Editor actions
+            } else if (buttonInteraction.customId === 'editBack') {
+                editingTradeId = null;
+                await buttonInteraction.update(await createTradeView(page));
+            } else if (buttonInteraction.customId === 'editConfirm') {
+                try {
+                    await axios.post(`${backendUrl}/trade/edit`, {
+                        tradeID: editingTradeId,
+                        callingUser: userId,
+                        offeredCards: Array.from(editCardsSelectedMine.values()).map(c => ({ card: c.id, quantity: c.count })),
+                        requestedCards: Array.from(editCardsSelectedTheirs.values()).map(c => ({ card: c.id, quantity: c.count })),
+                    });
+                    editingTradeId = null;
+                    await buttonInteraction.update(await createTradeView(page));
+                } catch (error) {
+                    console.error("Error sending counter-offer:", error);
+                    await buttonInteraction.update({ flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent(`Failed to send counter-offer: ${error.response?.data?.message || "Please try again."}`)] });
+                }
+            } else if (buttonInteraction.customId === 'editAddMine') {
+                editAddModeMine = !editAddModeMine; editRemoveModeMine = false; editAddModeTheirs = false; editRemoveModeTheirs = false;
+                await buttonInteraction.update(getEditorUI());
+            } else if (buttonInteraction.customId === 'editRemoveMine') {
+                editRemoveModeMine = !editRemoveModeMine; editAddModeMine = false; editAddModeTheirs = false; editRemoveModeTheirs = false;
+                await buttonInteraction.update(getEditorUI());
+            } else if (buttonInteraction.customId === 'editAddTheirs') {
+                editAddModeTheirs = !editAddModeTheirs; editAddModeMine = false; editRemoveModeMine = false; editRemoveModeTheirs = false;
+                await buttonInteraction.update(getEditorUI());
+            } else if (buttonInteraction.customId === 'editRemoveTheirs') {
+                editRemoveModeTheirs = !editRemoveModeTheirs; editAddModeMine = false; editRemoveModeMine = false; editAddModeTheirs = false;
+                await buttonInteraction.update(getEditorUI());
             }
-
-
         });
 
+        selectCollector.on('collect', async (selectInteraction) => {
+            const { customId, values } = selectInteraction;
 
+            if (customId === 'editMineQuantitySelect') {
+                const qty = parseInt(values[0]);
+                const card = editPendingMine;
+                editPendingMine = null;
+                if (card) applyQuantityEdit(card.id.toString(), qty, editRemoveModeMine ? editCardsSelectedMine : editCardsMineHas, editRemoveModeMine ? editCardsMineHas : editCardsSelectedMine);
+                await selectInteraction.update(getEditorUI());
+                return;
+            }
+            if (customId === 'editTheirsQuantitySelect') {
+                const qty = parseInt(values[0]);
+                const card = editPendingTheirs;
+                editPendingTheirs = null;
+                if (card) applyQuantityEdit(card.id.toString(), qty, editRemoveModeTheirs ? editCardsSelectedTheirs : editCardsTheirsHas, editRemoveModeTheirs ? editCardsTheirsHas : editCardsSelectedTheirs);
+                await selectInteraction.update(getEditorUI());
+                return;
+            }
 
+            if (customId === 'editMineCardSelect' || customId === 'editTheirsCardSelect') {
+                const isMine = customId === 'editMineCardSelect';
+                if (values[0] === '__none__') { await selectInteraction.update(getEditorUI()); return; }
+                if (values[0] === '__prev_page__') {
+                    if (isMine) editPageMine = Math.max(0, editPageMine - 1);
+                    else editPageTheirs = Math.max(0, editPageTheirs - 1);
+                    await selectInteraction.update(getEditorUI());
+                    return;
+                }
+                if (values[0] === '__next_page__') {
+                    if (isMine) editPageMine++;
+                    else editPageTheirs++;
+                    await selectInteraction.update(getEditorUI());
+                    return;
+                }
+
+                const removeMode = isMine ? editRemoveModeMine : editRemoveModeTheirs;
+                const sourceMap = removeMode
+                    ? (isMine ? editCardsSelectedMine : editCardsSelectedTheirs)
+                    : (isMine ? editCardsMineHas : editCardsTheirsHas);
+
+                const card = sourceMap.get(values[0]);
+                if (!card) { await selectInteraction.update(getEditorUI()); return; }
+
+                if (isMine) editPendingMine = card;
+                else editPendingTheirs = card;
+                await selectInteraction.update(getEditorUI());
+            }
+        });
 
     } catch (error) {
         console.error("Error fetching trade requests:", error);
