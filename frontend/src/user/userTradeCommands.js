@@ -267,6 +267,11 @@ async function makeTradeRequestReply(interaction) {
     selectCollector.on("collect", async (selectInteraction) => {
         const selectedCards = selectInteraction.values;
 
+        console.log('[Trade] Select fired:', selectInteraction.customId, 'values:', selectedCards);
+        console.log('[Trade] Modes — addSender:', addCardModeSender, 'removeSender:', removeCardModeSender, 'addReceiver:', addCardModeReceiver, 'removeReceiver:', removeCardModeReceiver);
+        console.log('[Trade] cardsSelectedSender:', JSON.stringify([...cardsSelectedSender.entries()]));
+        console.log('[Trade] cardsSelectedForTradeReciever:', JSON.stringify([...cardsSelectedForTradeReciever.entries()]));
+
         if (selectInteraction.customId !== "currentCardsForCurrentUserSelect" && selectInteraction.customId !== "otherUserCardsSelect") {
             await selectInteraction.update(getReplyObj());
             return;
@@ -278,6 +283,10 @@ async function makeTradeRequestReply(interaction) {
         let cardsSelected = forSender ? cardsSelectedSender : cardsSelectedForTradeReciever;
         let addCardMode = forSender ? addCardModeSender : addCardModeReceiver;
         let removeCardMode = forSender ? removeCardModeSender : removeCardModeReceiver;
+
+        console.log('[Trade] forSender:', forSender, 'addCardMode:', addCardMode, 'removeCardMode:', removeCardMode);
+        console.log('[Trade] cardsNotSelected keys:', JSON.stringify([...cardsNotSelected.keys()]));
+        console.log('[Trade] cardsSelected keys:', JSON.stringify([...cardsSelected.keys()]));
 
         if (!addCardMode && !removeCardMode) {
             await selectInteraction.update(getReplyObj());
