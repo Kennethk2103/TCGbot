@@ -267,6 +267,32 @@ export const acceptTrade = async (req, res) => {
 
             await tradeModel.findByIdAndDelete(tradeID).session(session);
 
+            // Cancel any other pending trades that can no longer be fulfilled
+            const affectedUserIds = [trade.offeringUser._id, trade.receivingUser._id];
+            const otherTrades = await tradeModel.find({
+                _id: { $ne: tradeID },
+                completed: false,
+                rejected: false,
+                $or: [
+                    { offeringUser: { $in: affectedUserIds } },
+                    { receivingUser: { $in: affectedUserIds } },
+                ],
+            })
+            .populate('offeringUser', 'Cards')
+            .populate('receivingUser', 'Cards')
+            .session(session);
+
+            const toDelete = [];
+            for (const t of otherTrades) {
+                const offeringHas = hasCards(t.offeringUser.Cards, t.offeredCards);
+                const receivingHas = hasCards(t.receivingUser.Cards, t.requestedCards);
+                if (!offeringHas || !receivingHas) toDelete.push(t._id);
+            }
+
+            if (toDelete.length > 0) {
+                await tradeModel.deleteMany({ _id: { $in: toDelete } }).session(session);
+            }
+
             return trade;
         });
 

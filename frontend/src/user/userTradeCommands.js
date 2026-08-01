@@ -515,8 +515,31 @@ async function viewTradeRequests(interaction) {
             // Trade list actions
             if (action === 'acceptTrade') {
                 try {
-                    await axios.post(`${backendUrl}/trade/accept`, { tradeID: tradeId, callingUser: userId });
-                    await buttonInteraction.update(await createTradeView(page));
+                    const acceptRes = await axios.post(`${backendUrl}/trade/accept`, { tradeID: tradeId, callingUser: userId });
+                    const trade = acceptRes.data.trade;
+
+                    const offeredNames = trade.offeredCards.map(c => `${c.card.Name} (x${c.quantity})`).join(", ");
+                    const requestedNames = trade.requestedCards.map(c => `${c.card.Name} (x${c.quantity})`).join(", ");
+
+                    // Notify the offering user via DM
+                    try {
+                        const offeringDiscordUser = await buttonInteraction.client.users.fetch(trade.offeringUser.DiscordID);
+                        await offeringDiscordUser.send(
+                            `Hey <@${trade.offeringUser.DiscordID}>! <@${userId}> accepted your trade!\n` +
+                            `**You gave:** ${offeredNames}\n` +
+                            `**You received:** ${requestedNames}`
+                        );
+                    } catch (dmError) {
+                        console.warn("Could not DM offering user:", dmError.message);
+                    }
+
+                    // Show confirmation to the accepting user
+                    await buttonInteraction.update({
+                        flags: 1 << 15 | 64,
+                        components: [new TextDisplayBuilder().setContent(
+                            `Trade accepted!\n**You gave:** ${requestedNames}\n**You received:** ${offeredNames}`
+                        )]
+                    });
                 } catch (error) {
                     console.error("Error accepting trade:", error);
                     await buttonInteraction.update({ flags: 1 << 15 | 64, components: [new TextDisplayBuilder().setContent("An error occurred while accepting the trade.")] });
